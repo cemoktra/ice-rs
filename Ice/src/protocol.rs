@@ -53,6 +53,17 @@ pub struct RequestData {
     pub params: Encapsulation
 }
 
+impl Encapsulation {
+    pub fn new(data: &Vec<u8>) -> Encapsulation {
+        Encapsulation {
+            size: 6 + data.len() as i32,
+            major: 1,
+            minor: 1,
+            data: data.clone()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ReplyData {
     pub request_id: i32,

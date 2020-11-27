@@ -1,4 +1,4 @@
-use ice_rs::protocol::{Encapsulation, Identity, RequestData};
+use ice_rs::protocol::{Encapsulation};
 use ice_rs::errors::Error;
 use ice_rs::proxy::Proxy;
 
@@ -20,24 +20,12 @@ struct HelloPrx
 
 impl Hello for HelloPrx {
     fn ice_is_a(&mut self) -> Result<bool, Error> {
-        let req = RequestData {
-            request_id: 1,
-            id: Identity {
-                name: self.name.clone(),
-                category: String::from("")
-            },
-            facet: Vec::new(),
-            operation: String::from("ice_isA"),
-            mode: 1,
-            context: std::collections::HashMap::new(),
-            params: Encapsulation {
-                size: 20,
-                major: 1,
-                minor: 1,
-                data: self.type_id.as_bytes().to_vec()
-            }
-        };
-    
+        let req = self.proxy.create_request(
+            &self.name, 
+            &String::from("ice_isA"),
+            1, 
+            Encapsulation::new(&self.type_id.as_bytes().to_vec())
+        );
         let reply = self.proxy.make_request(&req)?;
         if reply.body.data.len() == 1 {
             Ok(reply.body.data[0] != 0)
@@ -47,24 +35,12 @@ impl Hello for HelloPrx {
     }
 
     fn say_hello(&mut self) -> Result<(), Error> {
-        let req = RequestData {
-            request_id: 1,
-            id: Identity {
-                name: self.name.clone(),
-                category: String::from("")
-            },
-            facet: Vec::new(),
-            operation: String::from("sayHello"),
-            mode: 0,
-            context: std::collections::HashMap::new(),
-            params: Encapsulation {
-                size: 6,
-                major: 1,
-                minor: 1,
-                data: vec![]
-            }
-        };
-    
+        let req = self.proxy.create_request(
+            &self.name, 
+            &String::from("sayHello"),
+            0, 
+            Encapsulation::new(&vec![])
+        );    
         self.proxy.make_request(&req)?;
         Ok(())
     }
