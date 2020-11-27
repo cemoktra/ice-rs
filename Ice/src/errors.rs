@@ -6,4 +6,5 @@ pub enum Error {
     UnknownMessageType,
     // CannotSerialize,
     MessageWriteError,
+    CannotResolveProxy
 }  
