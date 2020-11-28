@@ -53,6 +53,49 @@ pub struct RequestData {
     pub params: Encapsulation
 }
 
+#[derive(Debug)]
+pub struct ReplyData {
+    pub request_id: i32,
+    pub status: u8,
+    pub body: Encapsulation
+}
+
+pub trait FromEncapsulation {
+    type Output;
+    fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>;
+}
+
+impl FromEncapsulation for String {
+    type Output = Self;
+
+    fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
+    {
+        Ok(String::from_utf8(body.data)?)
+    }
+}
+
+impl FromEncapsulation for Vec<String> {
+    type Output = Self;
+
+    fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
+    {
+        Ok(deserialize_string_seq(&body.data)?)
+    }
+}
+
+impl FromEncapsulation for bool {
+    type Output = Self;
+
+    fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
+    {
+        if body.data.len() == 1 {
+            Ok(body.data[0] != 0)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
 impl Encapsulation {
     pub fn new(data: &Vec<u8>) -> Encapsulation {
         Encapsulation {
@@ -73,12 +116,6 @@ impl Encapsulation {
     }
 }
 
-#[derive(Debug)]
-pub struct ReplyData {
-    pub request_id: i32,
-    pub status: u8,
-    pub body: Encapsulation
-}
 
 impl std::convert::From<FromUtf8Error> for Error {
     fn from(_err: FromUtf8Error) -> Error {
@@ -206,7 +243,7 @@ fn serialize_string_seq(seq: &Vec<String>) -> Vec<u8> {
     bytes
 }
 
-pub fn deserialize_string_seq(bytes: &[u8]) -> Result<Vec<String>, Error> {
+fn deserialize_string_seq(bytes: &[u8]) -> Result<Vec<String>, Error> {
     let (size, _) = deserialize_size(bytes);
     let mut string_seq: Vec<String> = vec![];
     let mut last_index = None;
