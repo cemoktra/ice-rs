@@ -1,5 +1,3 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use crate::errors::Error;
 use crate::transport::Transport;
 use crate::tcp::TcpTransport;
@@ -11,12 +9,12 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    pub fn new(proxy_string: &str) -> Result<Rc<RefCell<Proxy>>, Error> {
+    pub fn new(proxy_string: &str) -> Result<Proxy, Error> {
         // TODO: parse real proxy string
-        Ok(Rc::new(RefCell::new(Proxy {
+        Ok(Proxy {
             transport: Box::new(TcpTransport::new(proxy_string)?),
             request_id: 0
-        })))
+        })
     }
 
     pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: Encapsulation) -> RequestData {
