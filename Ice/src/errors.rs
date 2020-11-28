@@ -4,7 +4,7 @@ pub enum Error {
     WrongProtocolMagic,
     TcpCannotConnect,
     UnknownMessageType,
-    // CannotSerialize,
     MessageWriteError,
-    CannotResolveProxy
+    CannotResolveProxy,
+    NotImplemented,
 }  

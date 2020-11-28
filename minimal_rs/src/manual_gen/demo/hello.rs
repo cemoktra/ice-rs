@@ -1,7 +1,7 @@
 use super::traits::Hello;
-use ice_rs::errors::Error;
+use ice_rs::{errors::Error, protocol::deserialize_string_seq};
 use ice_rs::proxy::Proxy;
-use ice_rs::protocol::Encapsulation;
+use ice_rs::protocol::{Encapsulation};
 
 pub struct HelloPrx
 {
@@ -11,6 +11,18 @@ pub struct HelloPrx
 }
 
 impl Hello for HelloPrx {
+    fn ice_ping(&mut self) -> Result<(), Error>
+    {
+        let req = self.proxy.create_request(
+            &self.name, 
+            &String::from("ice_ping"),
+            0, 
+            Encapsulation::empty()
+        );    
+        self.proxy.make_request(&req)?;
+        Ok(())
+    }
+
     fn ice_is_a(&mut self) -> Result<bool, Error> {
         let req = self.proxy.create_request(
             &self.name, 
@@ -26,12 +38,36 @@ impl Hello for HelloPrx {
         }
     }
 
+    fn ice_id(&mut self) -> Result<String, Error>
+    {
+        let req = self.proxy.create_request(
+            &self.name, 
+            &String::from("ice_id"),
+            1, 
+            Encapsulation::empty()
+        );
+        let reply = self.proxy.make_request(&req)?;
+        Ok(String::from_utf8(reply.body.data)?)
+    }
+
+    fn ice_ids(&mut self) -> Result<Vec<String>, Error>
+    {
+        let req = self.proxy.create_request(
+            &self.name, 
+            &String::from("ice_ids"),
+            1, 
+            Encapsulation::empty()
+        );
+        let reply = self.proxy.make_request(&req)?;
+        deserialize_string_seq(&reply.body.data)
+    }
+
     fn say_hello(&mut self) -> Result<(), Error> {
         let req = self.proxy.create_request(
             &self.name, 
             &String::from("sayHello"),
             0, 
-            Encapsulation::new(&vec![])
+            Encapsulation::empty()
         );    
         self.proxy.make_request(&req)?;
         Ok(())

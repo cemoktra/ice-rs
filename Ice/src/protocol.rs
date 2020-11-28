@@ -62,6 +62,15 @@ impl Encapsulation {
             data: data.clone()
         }
     }
+
+    pub fn empty() -> Encapsulation {
+        Encapsulation {
+            size: 6,
+            major: 1,
+            minor: 1,
+            data: vec![]
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -168,6 +177,21 @@ fn serialize_size(size: i32) -> Vec<u8> {
     }
 }
 
+pub fn deserialize_size(bytes: &[u8]) -> (i32, u8) {
+    if bytes[0] == 255 {
+        if bytes.len() < 5 {
+            (0, 0)
+        } else {
+            match bytes[0..4].try_into() {
+                Ok(barray) => (i32::from_le_bytes(barray), 5),
+                _ => (0, 0)
+            }
+        }
+    } else {
+        (bytes[0] as i32, 1)
+    }
+}
+
 fn serialize_string(s: &str) -> Vec<u8> {
     let mut bytes = serialize_size(s.len() as i32);
     bytes.extend(s.as_bytes());
@@ -180,6 +204,32 @@ fn serialize_string_seq(seq: &Vec<String>) -> Vec<u8> {
         bytes.extend(serialize_string(item));
     }
     bytes
+}
+
+pub fn deserialize_string_seq(bytes: &[u8]) -> Result<Vec<String>, Error> {
+    let (size, _) = deserialize_size(bytes);
+    let mut string_seq: Vec<String> = vec![];
+    let mut last_index = None;
+
+    for (index, &c) in bytes.iter().enumerate() {
+        if c == 13 {
+            match last_index {
+                Some(last) => string_seq.push(String::from_utf8(bytes[last..index].to_vec())?),
+                _ => {}
+            };
+            last_index = Some(index);
+        }
+    }
+    match last_index {
+        Some(last) => string_seq.push(String::from_utf8(bytes[last..bytes.len()].to_vec())?),
+        _ => {}
+    };
+
+    if size as usize == string_seq.len() {
+        Ok(string_seq)
+    } else {
+        Err(Error::CannotDeserialize)
+    }
 }
 
 fn serialize_dict(dict: &HashMap<String, String>) -> Vec<u8> {
