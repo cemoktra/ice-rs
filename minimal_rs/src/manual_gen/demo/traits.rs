@@ -1,7 +1,7 @@
 use ice_rs::errors::Error;
 use ice_rs::encoding::{
     AsBytes, FromBytes, AsEncapsulation, FromEncapsulation,
-    encode_long, decode_long, decode_int, decode_short
+    encode_long, decode_long, decode_size
 };
 use ice_rs::protocol::Encapsulation;
 
@@ -43,10 +43,6 @@ pub trait Hello {
 }
 
 impl RectType {
-    fn max() -> i32 {
-        RectType::Square as i32
-    }
-
     fn from(n: i32) -> Result<RectType, Error> {
         match n {
             0 => Ok(RectType::Rect),
@@ -66,29 +62,16 @@ impl AsBytes for Rect {
     }
 }
 
-impl FromBytes for RectType {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if Self::max() < 127 {
-            RectType::from(bytes[0] as i32)
-        }
-        else if Self::max() < 32766 {
-            RectType::from(decode_short(bytes)? as i32)
-        }
-        else {
-            RectType::from(decode_int(bytes)?)
-        }
-    }
-}
-
 impl FromBytes for RectProps {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         let width = decode_long(&bytes[0..8])?;
         let height = decode_long(&bytes[8..16])?;
+        let (enum_value, _) = decode_size(&bytes[16..bytes.len()]);
 
         Ok(RectProps{
             width: width,
             height: height,
-            rect_type: RectType::from_bytes(&bytes[16..bytes.len()])?
+            rect_type: RectType::from(enum_value)?
         })
     }
 }
