@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 ice-rs = { path = "../Ice" }
+num_enum = "0.5"

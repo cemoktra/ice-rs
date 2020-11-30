@@ -5,10 +5,13 @@ use ice_rs::encoding::{
 };
 use ice_rs::protocol::Encapsulation;
 
+// only for enums
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 
 
-#[derive(Debug, Copy, Clone)]
-#[repr(i8)] // based on max i8, i16, i32
+#[derive(Debug, Copy, Clone, TryFromPrimitive)]
+#[repr(i32)]
 pub enum RectType {
     Rect,
     Square
@@ -42,16 +45,6 @@ pub trait Hello {
     fn calc_rect(&mut self, rc: Rect) -> Result<RectProps, Error>;
 }
 
-impl RectType {
-    fn from(n: i32) -> Result<RectType, Error> {
-        match n {
-            0 => Ok(RectType::Rect),
-            1 => Ok(RectType::Square),
-            _ => Err(Error::CannotDeserialize)
-        }
-    }
-}
-
 impl AsBytes for Rect {
     fn as_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut bytes = encode_long(self.left);
@@ -67,11 +60,17 @@ impl FromBytes for RectProps {
         let width = decode_long(&bytes[0..8])?;
         let height = decode_long(&bytes[8..16])?;
         let (enum_value, _) = decode_size(&bytes[16..bytes.len()]);
+        let enum_type = match RectType::try_from(enum_value) {
+            Ok(enum_type) => enum_type,
+            _ => {
+                return Err(Error::CannotDeserialize)
+            }
+        };
 
         Ok(RectProps{
             width: width,
             height: height,
-            rect_type: RectType::from(enum_value)?
+            rect_type: enum_type
         })
     }
 }
