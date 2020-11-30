@@ -1,4 +1,4 @@
-use super::traits::Hello;
+use super::traits::{Hello, Rect, RectProps};
 use ice_rs::{errors::Error, protocol::ReplyData, protocol::Encapsulation};
 use ice_rs::proxy::Proxy;
 use ice_rs::encoding::{FromEncapsulation, AsEncapsulation};
@@ -7,6 +7,7 @@ pub struct HelloPrx
 {
     proxy: Proxy
 }
+
 
 impl Hello for HelloPrx {
     fn ice_ping(&mut self) -> Result<(), Error>
@@ -40,6 +41,11 @@ impl Hello for HelloPrx {
     fn say(&mut self, text: &str) -> Result<(), Error> {
         self.dispatch(&String::from("say"), 0, text.as_encapsulation()?)?;
         Ok(())
+    }
+
+    fn calc_rect(&mut self, rc: Rect) -> Result<RectProps, Error> {
+        let reply = self.dispatch(&String::from("calcRect"), 0, rc.as_encapsulation()?)?;
+        RectProps::from_encapsulation(reply.body)
     }
 }
 

@@ -103,7 +103,53 @@ fn decode_string_seq(bytes: &[u8]) -> Result<Vec<String>, Error> {
     Ok(string_seq)
 }
 
+pub fn encode_short(n: i16) -> Vec<u8>
+{  
+    n.to_le_bytes().to_vec()
+}
 
+pub fn decode_short(bytes: &[u8]) -> Result<i16, Error>
+{   
+    if bytes.len() < 2 {
+        return Err(Error::CannotDeserialize);
+    }
+    match bytes[0..2].try_into() {
+        Ok(barray) => Ok(i16::from_le_bytes(barray)),
+        _ => Err(Error::CannotDeserialize)
+    }
+}
+
+pub fn encode_int(n: i32) -> Vec<u8>
+{  
+    n.to_le_bytes().to_vec()
+}
+
+pub fn decode_int(bytes: &[u8]) -> Result<i32, Error>
+{   
+    if bytes.len() < 4 {
+        return Err(Error::CannotDeserialize);
+    }
+    match bytes[0..4].try_into() {
+        Ok(barray) => Ok(i32::from_le_bytes(barray)),
+        _ => Err(Error::CannotDeserialize)
+    }
+}
+
+pub fn encode_long(n: i64) -> Vec<u8>
+{  
+    n.to_le_bytes().to_vec()
+}
+
+pub fn decode_long(bytes: &[u8]) -> Result<i64, Error>
+{   
+    if bytes.len() < 8 {
+        return Err(Error::CannotDeserialize);
+    }
+    match bytes[0..8].try_into() {
+        Ok(barray) => Ok(i64::from_le_bytes(barray)),
+        _ => Err(Error::CannotDeserialize)
+    }
+}
 
 
 // implement encapsulation traits for basic types
