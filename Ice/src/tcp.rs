@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 
 use crate::errors::Error;
-use crate::serialization::{Serialize, Deserialize};
+use crate::encoding::{AsBytes, FromBytes};
 use crate::protocol::{Header, MessageType, RequestData, ReplyData};
 use crate::transport::Transport;
 
@@ -59,7 +59,7 @@ impl Transport for TcpTransport {
             compression_status: 0,
             message_size: 14
         };
-        let bytes = header.to_bytes()?;
+        let bytes = header.as_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
             return Err(Error::MessageWriteError);
@@ -70,7 +70,7 @@ impl Transport for TcpTransport {
 
     fn make_request(&mut self, request: &RequestData) -> Result<(), Error>
     {
-        let req_bytes = request.to_bytes()?;
+        let req_bytes = request.as_bytes()?;
         let header = Header {
             magic: String::from("IceP"),
             protocol_major: 1,
@@ -81,7 +81,7 @@ impl Transport for TcpTransport {
             compression_status: 0,
             message_size: 14 + req_bytes.len() as i32
         };
-        let mut bytes = header.to_bytes()?;
+        let mut bytes = header.as_bytes()?;
         bytes.extend(req_bytes);
 
         let written = self.stream.write(&bytes)?;

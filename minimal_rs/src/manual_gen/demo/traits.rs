@@ -8,4 +8,5 @@ pub trait Hello {
     fn ice_ids(&mut self) -> Result<Vec<String>, Error>;
     // hello interface
     fn say_hello(&mut self) -> Result<(), Error>;
+    fn say(&mut self, text: &str) -> Result<(), Error>;
 }

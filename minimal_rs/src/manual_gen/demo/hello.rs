@@ -1,7 +1,7 @@
 use super::traits::Hello;
-use ice_rs::{errors::Error, protocol::ReplyData};
+use ice_rs::{errors::Error, protocol::ReplyData, protocol::Encapsulation};
 use ice_rs::proxy::Proxy;
-use ice_rs::protocol::{Encapsulation, FromEncapsulation};
+use ice_rs::encoding::{FromEncapsulation, AsEncapsulation};
 
 pub struct HelloPrx
 {
@@ -16,7 +16,7 @@ impl Hello for HelloPrx {
     }
 
     fn ice_is_a(&mut self) -> Result<bool, Error> {
-        let reply = self.dispatch(&String::from("ice_isA"), 1, Encapsulation::new(&HelloPrx::TYPE_ID.as_bytes().to_vec()))?;
+        let reply = self.dispatch(&String::from("ice_isA"), 1, HelloPrx::TYPE_ID.as_encapsulation()?)?;
         bool::from_encapsulation(reply.body)
     }
 
@@ -36,10 +36,15 @@ impl Hello for HelloPrx {
         self.dispatch(&String::from("sayHello"), 0, Encapsulation::empty())?;
         Ok(())
     }
+
+    fn say(&mut self, text: &str) -> Result<(), Error> {
+        self.dispatch(&String::from("say"), 0, text.as_encapsulation()?)?;
+        Ok(())
+    }
 }
 
 impl HelloPrx {
-    const TYPE_ID: &'static str = "\r::Demo::Hello";
+    const TYPE_ID: &'static str = "::Demo::Hello";
     const NAME: &'static str = "hello";
 
     pub fn checked_cast(proxy: Proxy) -> Result<HelloPrx, Error> {
