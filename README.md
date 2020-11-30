@@ -1,4 +1,5 @@
 # ice-rs #
 
-The goal of this project is to support Rust in [ZeroC Ice](https://github.com/zeroc-ice/ice). The current state is demonstrating the call to any language server of the minimal [demo](https://github.com/zeroc-ice/ice-demos).
-Therefore only some protocol messages are implemented and no code generation is done. The network packages are manually created.
+The goal of this project is to support Rust in [ZeroC Ice](https://github.com/zeroc-ice/ice). Currently just client features are implemented. An ice file with python server code is added to test client features.
+
+The goal is to add parsing/generating when a good structuring of the output code is found. 
