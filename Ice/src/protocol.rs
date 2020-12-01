@@ -56,6 +56,21 @@ pub struct ReplyData {
     pub body: Encapsulation
 }
 
+impl Header {
+    pub fn new(message_type: u8, message_size: i32) -> Header {
+        Header {
+            magic: String::from("IceP"),
+            protocol_major: 1,
+            protocol_minor: 1,
+            encoding_major: 1,
+            encoding_minor: 1,
+            message_type: message_type,
+            compression_status: 0,
+            message_size: message_size
+        }
+    }
+}
+
 impl Encapsulation {
     pub fn empty() -> Encapsulation {
         Encapsulation {

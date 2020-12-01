@@ -36,11 +36,12 @@ impl Transport for TcpTransport {
     fn read_message(&mut self) -> Result<MessageType, Error>
     {
         let bytes = self.stream.read(&mut self.buffer)?;
-        let header = Header::from_bytes(&self.buffer[0..bytes])?;
+        let (header, read) = Header::from_bytes(&self.buffer[0..bytes])?;
 
         match header.message_type {
             2 => {
-                Ok(MessageType::Reply(header, ReplyData::from_bytes(&self.buffer[14..bytes])?))
+                let (reply, _) = ReplyData::from_bytes(&self.buffer[read as usize..bytes as usize])?;
+                Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
             _ => Err(Error::UnknownMessageType)
@@ -49,16 +50,7 @@ impl Transport for TcpTransport {
 
     fn validate_connection(&mut self) -> Result<(), Error>
     {
-        let header = Header {
-            magic: String::from("IceP"),
-            protocol_major: 1,
-            protocol_minor: 0,
-            encoding_major: 1,
-            encoding_minor: 0,
-            message_type: 3,
-            compression_status: 0,
-            message_size: 14
-        };
+        let header = Header::new(0, 14);
         let bytes = header.as_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
@@ -71,16 +63,7 @@ impl Transport for TcpTransport {
     fn make_request(&mut self, request: &RequestData) -> Result<(), Error>
     {
         let req_bytes = request.as_bytes()?;
-        let header = Header {
-            magic: String::from("IceP"),
-            protocol_major: 1,
-            protocol_minor: 0,
-            encoding_major: 1,
-            encoding_minor: 0,
-            message_type: 0,
-            compression_status: 0,
-            message_size: 14 + req_bytes.len() as i32
-        };
+        let header = Header::new(0, 14 + req_bytes.len() as i32);
         let mut bytes = header.as_bytes()?;
         bytes.extend(req_bytes);
 

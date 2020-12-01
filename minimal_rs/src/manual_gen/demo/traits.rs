@@ -56,7 +56,7 @@ impl AsBytes for Rect {
 }
 
 impl FromBytes for RectProps {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
         let width = decode_long(&bytes[0..8])?;
         let height = decode_long(&bytes[8..16])?;
         let (enum_value, _) = decode_size(&bytes[16..bytes.len()]);
@@ -67,16 +67,16 @@ impl FromBytes for RectProps {
             }
         };
 
-        Ok(RectProps{
+        Ok((RectProps{
             width: width,
             height: height,
             rect_type: enum_type
-        })
+        }, 17))
     }
 }
 
 impl AsEncapsulation for Rect {
-    fn as_encapsulation(self) -> Result<Encapsulation, Error> {
+    fn as_encapsulation(&self) -> Result<Encapsulation, Error> {
         let bytes = self.as_bytes()?;
         Ok(Encapsulation {
             size: 6 + bytes.len() as i32,
@@ -91,6 +91,7 @@ impl FromEncapsulation for RectProps {
     type Output = RectProps;
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error> {
-        RectProps::from_bytes(&body.data)
+        let (props, _) = RectProps::from_bytes(&body.data)?;
+        Ok(props)
     }
 }
