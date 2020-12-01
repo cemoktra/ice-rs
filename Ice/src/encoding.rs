@@ -18,7 +18,7 @@ pub trait AsBytes {
 }
 
 pub trait FromBytes {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> where Self: Sized;
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> where Self: Sized;
 }
 
 pub trait FromEncapsulation {
@@ -43,21 +43,25 @@ pub fn encode_size(size: i32) -> Vec<u8> {
     }
 }
 
-pub fn decode_size(bytes: &[u8]) -> (i32, i32) {
+pub fn decode_size(bytes: &[u8], read_bytes: &mut i32) -> i32 {
     if bytes[0] == 255 {
         if bytes.len() < 5 {
-            (0, 0)
+            0
         } else {            
-            match decode_int(&bytes[1..5]) {
-                Ok((size, read)) => (size, read + 1),
-                _ => (0, 0)
+            match decode_int(&bytes[1..5], read_bytes) {
+                Ok(size) => {
+                    *read_bytes = *read_bytes + 1;
+                    size
+                },
+                _ => 0
             }
         }
     } else {
         if bytes.len() < 1 {
-            (0, 0)
+            0
         } else  {
-            (bytes[0] as i32, 1)
+            *read_bytes = *read_bytes + 1;
+            bytes[0] as i32
         }
     }
 }
@@ -69,11 +73,13 @@ pub fn encode_string(s: &str) -> Vec<u8>
     bytes
 }
 
-pub fn decode_string(bytes: &[u8]) -> Result<(String, i32), Error>
+pub fn decode_string(bytes: &[u8], read_bytes: &mut i32) -> Result<String, Error>
 {  
-    let (size, read) = decode_size(bytes);
+    let mut read = 0;
+    let size = decode_size(bytes, &mut read);
     let s = String::from_utf8(bytes[read as usize..read as usize + size as usize].to_vec())?;
-    Ok((s, read as i32 + size))
+    *read_bytes = *read_bytes + read + size;
+    Ok(s)
 }
 
 pub fn encode_dict(dict: &HashMap<String, String>) -> Vec<u8> {
@@ -85,19 +91,18 @@ pub fn encode_dict(dict: &HashMap<String, String>) -> Vec<u8> {
     bytes
 }
 
-pub fn decode_dict(bytes: &[u8]) -> Result<(HashMap<String, String>, i32), Error> {
-    let (size, read) = decode_size(bytes);
+pub fn decode_dict(bytes: &[u8], read_bytes: &mut i32) -> Result<HashMap<String, String>, Error> {
+    let mut read = 0;
+    let size = decode_size(bytes, &mut read);
     let mut dict: HashMap<String, String> = HashMap::new();
-    let mut current_position = read as i32;
 
     for _i in 0..size {
-        let (key, read) = decode_string(&bytes[current_position as usize..bytes.len()])?;
-        current_position = current_position + read;
-        let (value, read) = decode_string(&bytes[current_position as usize..bytes.len()])?;
-        current_position = current_position + read;
+        let key = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
+        let value = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
         dict.insert(key, value);
     }
-    Ok((dict, current_position))
+    *read_bytes = *read_bytes + read;
+    Ok(dict)
 }
 
 pub fn encode_string_seq(seq: &Vec<String>) -> Vec<u8> {
@@ -108,18 +113,22 @@ pub fn encode_string_seq(seq: &Vec<String>) -> Vec<u8> {
     bytes
 }
 
-pub fn decode_string_seq(bytes: &[u8]) -> Result<(Vec<String>, i32), Error> {
-    let (size, read) = decode_size(bytes);
+pub fn decode_string_seq(bytes: &[u8], read_bytes: &mut i32) -> Result<Vec<String>, Error> {
+    let mut read = 0;
+    let size = decode_size(bytes, &mut read);
     let mut string_seq: Vec<String> = vec![];
-    let mut current_position = read as i32;
 
     for _i in 0..size {
-        let (s, read) = decode_string(&bytes[current_position as usize..bytes.len()])?;
-        string_seq.push(s);
-        current_position = current_position + read;
+        string_seq.push(decode_string(&bytes[read as usize..bytes.len()], &mut read)?);
     }
+    *read_bytes = *read_bytes + read;
+    Ok(string_seq)
+}
 
-    Ok((string_seq, current_position))
+pub fn decode_byte(bytes: &[u8], read_bytes: &mut i32) -> Result<u8, Error>
+{   
+    *read_bytes = *read_bytes + 1;
+    Ok(bytes[0])
 }
 
 pub fn encode_short(n: i16) -> Vec<u8>
@@ -127,13 +136,16 @@ pub fn encode_short(n: i16) -> Vec<u8>
     n.to_le_bytes().to_vec()
 }
 
-pub fn decode_short(bytes: &[u8]) -> Result<(i16, i32), Error>
+pub fn decode_short(bytes: &[u8], read_bytes: &mut i32) -> Result<i16, Error>
 {   
     if bytes.len() < 2 {
         return Err(Error::CannotDeserialize);
     }
     match bytes[0..2].try_into() {
-        Ok(barray) => Ok((i16::from_le_bytes(barray), 2)),
+        Ok(barray) => {
+            *read_bytes = *read_bytes + 2;
+            Ok(i16::from_le_bytes(barray))
+        },
         _ => Err(Error::CannotDeserialize)
     }
 }
@@ -143,13 +155,16 @@ pub fn encode_int(n: i32) -> Vec<u8>
     n.to_le_bytes().to_vec()
 }
 
-pub fn decode_int(bytes: &[u8]) -> Result<(i32, i32), Error>
+pub fn decode_int(bytes: &[u8], read_bytes: &mut i32) -> Result<i32, Error>
 {   
     if bytes.len() < 4 {
         return Err(Error::CannotDeserialize);
     }
     match bytes[0..4].try_into() {
-        Ok(barray) => Ok((i32::from_le_bytes(barray), 4)),
+        Ok(barray) => {
+            *read_bytes = *read_bytes + 4;
+            Ok(i32::from_le_bytes(barray))
+        },
         _ => Err(Error::CannotDeserialize)
     }
 }
@@ -159,13 +174,16 @@ pub fn encode_long(n: i64) -> Vec<u8>
     n.to_le_bytes().to_vec()
 }
 
-pub fn decode_long(bytes: &[u8]) -> Result<(i64, i32), Error>
+pub fn decode_long(bytes: &[u8], read_bytes: &mut i32) -> Result<i64, Error>
 {   
     if bytes.len() < 8 {
         return Err(Error::CannotDeserialize);
     }
     match bytes[0..8].try_into() {
-        Ok(barray) => Ok((i64::from_le_bytes(barray), 8)),
+        Ok(barray) => {
+            *read_bytes = *read_bytes + 8;
+            Ok(i64::from_le_bytes(barray))
+        },
         _ => Err(Error::CannotDeserialize)
     }
 }
@@ -175,12 +193,13 @@ pub fn encode_bool(b: bool) -> Vec<u8>
     vec![if b { 1 } else { 0 }]
 }
 
-pub fn decode_bool(bytes: &[u8]) -> Result<(bool, i32), Error>
+pub fn decode_bool(bytes: &[u8], read_bytes: &mut i32) -> Result<bool, Error>
 {   
     if bytes.len() < 1 {
         return Err(Error::CannotDeserialize);
     }
-    Ok((bytes[0] != 0, 1))
+    *read_bytes = *read_bytes + 1;
+    Ok(bytes[0] != 0)
 }
 
 
@@ -191,8 +210,8 @@ impl FromEncapsulation for String {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (s, _) = decode_string(&body.data)?;
-        Ok(s)
+        let mut read_bytes = 0;
+        decode_string(&body.data, &mut read_bytes)
     }
 }
 
@@ -237,8 +256,8 @@ impl FromEncapsulation for Vec<String> {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (seq, _) = decode_string_seq(&body.data)?;
-        Ok(seq)
+        let mut read_bytes = 0;
+        decode_string_seq(&body.data, &mut read_bytes)
     }
 }
 
@@ -258,8 +277,8 @@ impl FromEncapsulation for bool {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (value, _) = decode_bool(&body.data)?;
-        Ok(value)
+        let mut read_bytes = 0;
+        decode_bool(&body.data, &mut read_bytes)
     }
 }
 
@@ -280,8 +299,8 @@ impl FromEncapsulation for i16 {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (value, _) = decode_short(&body.data)?;
-        Ok(value)
+        let mut read_bytes = 0;
+        decode_short(&body.data, &mut read_bytes)
     }
 }
 
@@ -302,8 +321,8 @@ impl FromEncapsulation for i32 {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (value, _) = decode_int(&body.data)?;
-        Ok(value)
+        let mut read_bytes = 0;
+        decode_int(&body.data, &mut read_bytes)
     }
 }
 
@@ -324,8 +343,8 @@ impl FromEncapsulation for i64 {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (value, _) = decode_long(&body.data)?;
-        Ok(value)
+        let mut read_bytes = 0;
+        decode_long(&body.data, &mut read_bytes)
     }
 }
 
@@ -347,8 +366,8 @@ impl FromEncapsulation for HashMap<String, String> {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        let (dict, _) = decode_dict(&body.data)?;
-        Ok(dict)
+        let mut read_bytes = 0;
+        decode_dict(&body.data, &mut read_bytes)
     }
 }
 
@@ -365,14 +384,16 @@ impl AsBytes for Identity {
 }
 
 impl FromBytes for Identity {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
-        let (name, name_bytes) = decode_string(bytes)?;
-        let (category, category_bytes) = decode_string(&bytes[name_bytes as usize..bytes.len()])?;
-
-        Ok((Identity {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+        let mut read = 0;
+        let name = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
+        let category = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
+        println!("identity with  {} bytes", read);
+        *read_bytes = *read_bytes + read;
+        Ok(Identity {
             name: name,
             category: category
-        }, name_bytes + category_bytes))
+        })
     }
 }
 
@@ -391,22 +412,23 @@ impl AsBytes for Encapsulation {
 }
 
 impl FromBytes for Encapsulation {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+        let mut read: i32 = 0;
         if bytes.len() < 6 {
             return Err(Error::CannotDeserialize);
         }
 
-        let size = match bytes[0..4].try_into() {
-            Ok(barray) => i32::from_le_bytes(barray),
-            _ => return Err(Error::CannotDeserialize)
-        };
+        let size = decode_int(&bytes[read as usize..bytes.len()], &mut read)?;
+        let major = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let minor = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        *read_bytes = *read_bytes + read + (bytes.len() as i32 - read);
 
-        Ok((Encapsulation {
+        Ok(Encapsulation {
             size: size,
-            major: bytes[4],
-            minor: bytes[5],
-            data: bytes[6..bytes.len()].to_vec()
-        }, size))
+            major: major,
+            minor: minor,
+            data: bytes[read as usize..bytes.len()].to_vec()
+        })
     }
 }
 
@@ -428,24 +450,18 @@ impl AsBytes for RequestData {
 }
 
 impl FromBytes for RequestData {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
-        let mut read_bytes = 0;
-        let (request_id, read) = decode_int(bytes)?;
-        read_bytes = read_bytes + read;
-        let (id, read) = Identity::from_bytes(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (facet, read) = decode_string_seq(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (operation, read) = decode_string(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let mode = bytes[read_bytes as usize];
-        read_bytes = read_bytes + 1;
-        let (context, read) = decode_dict(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (encapsulation, read) = Encapsulation::from_bytes(&bytes[read_bytes as usize..bytes.len()])?;        
-        read_bytes = read_bytes + read;
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+        let mut read = 0;
+        let request_id = decode_int(bytes, &mut read)?;
+        let id = Identity::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+        let facet = decode_string_seq(&bytes[read as usize..bytes.len()], &mut read)?;
+        let operation = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
+        let mode = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let context = decode_dict(&bytes[read as usize..bytes.len()], &mut read)?;
+        let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+        *read_bytes = *read_bytes + read;
 
-        Ok((RequestData {
+        Ok(RequestData {
             request_id: request_id,
             id: id,
             facet: facet,
@@ -453,7 +469,7 @@ impl FromBytes for RequestData {
             mode: mode,
             context: context,
             params: encapsulation
-        }, read_bytes))
+        })
     }
 }
 
@@ -471,20 +487,21 @@ impl AsBytes for ReplyData {
 }
 
 impl FromBytes for ReplyData {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+        let mut read: i32 = 0;
         if bytes.len() < 11 {
             return Err(Error::CannotDeserialize);
         }
-        let request_id = match bytes[0..4].try_into() {
-            Ok(barray) => i32::from_le_bytes(barray),
-            _ => return Err(Error::CannotDeserialize)
-        };
-        let (encapsulation, size) = Encapsulation::from_bytes(&bytes[5..bytes.len()])?;        
-        Ok((ReplyData {
+
+        let request_id = decode_int(&bytes[read as usize..bytes.len()], &mut read)?;
+        let status = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+        *read_bytes = *read_bytes + read;
+        Ok(ReplyData {
             request_id: request_id,
-            status: bytes[4],
+            status: status,
             body: encapsulation
-        }, size + 5))
+        })
     }
 }
 
@@ -506,7 +523,7 @@ impl AsBytes for Header {
 }
 
 impl FromBytes for Header {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
         if bytes.len() < 14 {
             return Err(Error::CannotDeserialize);
         }
@@ -515,20 +532,26 @@ impl FromBytes for Header {
         if magic != "IceP" {
             return Err(Error::WrongProtocolMagic);
         }        
-        let message_size = match bytes[10..14].try_into() {
-            Ok(barray) => i32::from_le_bytes(barray),
-            _ => return Err(Error::CannotDeserialize)
-        };
-        Ok((Header {
+        let mut read: i32 = 4;
+        let protocol_major = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let protocol_minor = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let encoding_major = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let encoding_minor = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let message_type = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let comression_status = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;
+        let message_size = decode_int(&bytes[read as usize..bytes.len()], &mut read)?;
+        *read_bytes = *read_bytes + read;
+
+        Ok(Header {
             magic: magic,
-            protocol_major: bytes[4],
-            protocol_minor: bytes[5],
-            encoding_major: bytes[6],
-            encoding_minor: bytes[7],
-            message_type: bytes[8],
-            compression_status: bytes[9],
+            protocol_major: protocol_major,
+            protocol_minor: protocol_minor,
+            encoding_major: encoding_major,
+            encoding_minor: encoding_minor,
+            message_type: message_type,
+            compression_status: comression_status,
             message_size: message_size
-        }, 14))
+        })
     }
 }
 
@@ -538,74 +561,83 @@ mod test {
 
     #[test]
     fn test_size_encoding() {
+        let mut read_bytes = 0;
         let encoded = encode_size(10);
-        let (decoded, bytes) = decode_size(&encoded);
+        let decoded = decode_size(&encoded, &mut read_bytes);
         assert_eq!(10, decoded);
-        assert_eq!(1, bytes);
+        assert_eq!(1, read_bytes);
 
+        read_bytes = 0;
         let encoded = encode_size(500);
-        let (decoded, bytes) = decode_size(&encoded);
+        let decoded = decode_size(&encoded, &mut read_bytes);
         assert_eq!(500, decoded);
-        assert_eq!(5, bytes);
+        assert_eq!(5, read_bytes);
     }
 
     #[test]
     fn test_string_encoding() {
+        let mut read_bytes = 0;
         let encoded = encode_string("Hello");
-        let (decoded, bytes) = decode_string(&encoded).expect("Cannot decode test string");
+        let decoded = decode_string(&encoded, &mut read_bytes).expect("Cannot decode test string");
         assert_eq!("Hello", decoded);
-        assert_eq!(6, bytes);
+        assert_eq!(6, read_bytes);
     }
 
     #[test]
     fn test_dict_encoding() {
+        let mut read_bytes = 0;
         let mut dict = HashMap::new();
         dict.insert(String::from("Hello"), String::from("World"));
 
         let encoded = encode_dict(&dict);
-        let (decoded, _) = decode_dict(&encoded).expect("Cannot decode test dict");
+        let decoded = decode_dict(&encoded, &mut read_bytes).expect("Cannot decode test dict");
         assert!(decoded.contains_key("Hello"));
         assert_eq!("World", decoded.get("Hello").unwrap_or(&String::from("")));
     }
 
     #[test]
     fn test_string_seq_encoding() {
+        let mut read_bytes = 0;
         let seq = vec![String::from("Hello"), String::from("World")];
         let encoded = encode_string_seq(&seq);
-        let (decoded, _) = decode_string_seq(&encoded).expect("Cannot decode test dict");
+        let decoded = decode_string_seq(&encoded, &mut read_bytes).expect("Cannot decode test dict");
         assert_eq!(2, decoded.len());
         assert_eq!(seq, decoded);
     }
 
     #[test]
     fn test_short_encoding() {
+        let mut read_bytes = 0;
         let value: i16 = 3;
         let encoded = encode_short(value);
-        let decoded = decode_short(&encoded).expect("Cannot decode test short");
+        let decoded = decode_short(&encoded, &mut read_bytes).expect("Cannot decode test short");
         assert_eq!(value, decoded);
     }
 
     #[test]
     fn test_int_encoding() {
+        let mut read_bytes = 0;
         let value: i32 = 3;
         let encoded = encode_int(value);
-        let decoded = decode_int(&encoded).expect("Cannot decode test int");
+        let decoded = decode_int(&encoded, &mut read_bytes).expect("Cannot decode test int");
         assert_eq!(value, decoded);
     }
 
     #[test]
     fn test_long_encoding() {
+        let mut read_bytes = 0;
         let value: i64 = 3;
         let encoded = encode_long(value);
-        let decoded = decode_long(&encoded).expect("Cannot decode test long");
+        let decoded = decode_long(&encoded, &mut read_bytes).expect("Cannot decode test long");
         assert_eq!(value, decoded);
     }
 
     #[test]
     fn test_bool_encoding() {
+        let mut read_bytes = 0;
         let value = true;
         let encoded = encode_bool(value);
-        let decoded = decode_bool(&encoded).expect("Cannot decode test bool");
+        let decoded = decode_bool(&encoded, &mut read_bytes).expect("Cannot decode test bool");
         assert_eq!(value, decoded);
     }
 
@@ -676,23 +708,25 @@ mod test {
 
     #[test]
     fn test_identity_ecoding() {
+        let mut read_bytes = 0;
         let id = Identity {
             name: String::from("Hello"),
             category: String::from(""),
         };
         let bytes = id.as_bytes().expect("Cannot encode test identity");
-        let (decoded, read) = Identity::from_bytes(&bytes).expect("Cannot decode test identity");
-        assert_eq!(7, read);
+        let decoded = Identity::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test identity");
+        assert_eq!(7, read_bytes);
         assert_eq!(id.name, decoded.name);
         assert_eq!(id.category, decoded.category);
     }
 
     #[test]
     fn test_header_ecoding() {
+        let mut read_bytes = 0;
         let header = Header::new(0, 14);
         let bytes = header.as_bytes().expect("Cannot encode test header");
-        let (decoded, read) = Header::from_bytes(&bytes).expect("Cannot decode test header");
-        assert_eq!(14, read);
+        let decoded = Header::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test header");
+        assert_eq!(14, read_bytes);
         assert_eq!(header.magic, decoded.magic);
         assert_eq!(header.message_size, decoded.message_size);
         assert_eq!(header.message_type, decoded.message_type);
@@ -701,6 +735,7 @@ mod test {
 
     #[test]
     fn test_request_ecoding() {
+        let mut read_bytes = 0;
         let request = RequestData {
             request_id: 1,
             id: Identity {
@@ -714,8 +749,8 @@ mod test {
             params: Encapsulation::empty()
         };
         let bytes = request.as_bytes().expect("Cannot encode test request");
-        let (decoded, read) = RequestData::from_bytes(&bytes).expect("Cannot decode test request");
-        assert_eq!(22, read);
+        let decoded = RequestData::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test request");
+        assert_eq!(22, read_bytes);
         assert_eq!(request.request_id, decoded.request_id);
         assert_eq!(request.id.name, decoded.id.name);
         assert_eq!(request.facet, decoded.facet);
@@ -725,15 +760,16 @@ mod test {
     }
 
     #[test]
-    fn test_reply_ecoding() {
+    fn test_reply_encoding() {
+        let mut read_bytes = 0;
         let reply = ReplyData {
             request_id: 1,
             status: 0,
             body: Encapsulation::empty()
         };
         let bytes = reply.as_bytes().expect("Cannot encode test reply");
-        let (decoded, read) = ReplyData::from_bytes(&bytes).expect("Cannot decode test reply");        
-        assert_eq!(11, read);
+        let decoded = ReplyData::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test reply");        
+        assert_eq!(11, read_bytes);
         assert_eq!(reply.request_id, decoded.request_id);
         assert_eq!(reply.status, decoded.status);
     }

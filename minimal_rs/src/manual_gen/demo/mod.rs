@@ -58,23 +58,20 @@ impl AsBytes for Rect {
 }
 
 impl FromBytes for Rect {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
-        let mut read_bytes = 0;
-        let (left, read) =  decode_long(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (right, read) =  decode_long(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (top, read) =  decode_long(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (bottom, read) =  decode_long(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+        let mut read = 0;
+        let left =  decode_long(&bytes[read as usize..bytes.len()], &mut read)?;
+        let right =  decode_long(&bytes[read as usize..bytes.len()], &mut read)?;
+        let top =  decode_long(&bytes[read as usize..bytes.len()], &mut read)?;
+        let bottom =  decode_long(&bytes[read as usize..bytes.len()], &mut read)?;
+        *read_bytes = *read_bytes + read;
 
-        Ok((Rect {
+        Ok(Rect {
             left: left,
             right: right,
             top: top,
             bottom:  bottom,
-        }, read_bytes))
+        })
     }
 }
 
@@ -88,26 +85,24 @@ impl AsBytes for RectProps {
 }
 
 impl FromBytes for RectProps {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
-        let mut read_bytes = 0;
-        let (width, read) =  decode_long(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (height, read) =  decode_long(&bytes[read_bytes as usize..bytes.len()])?;
-        read_bytes = read_bytes + read;
-        let (enum_value, read) =  decode_size(&bytes[read_bytes as usize..bytes.len()]);
-        read_bytes = read_bytes + read;
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+        let mut read = 0;
+        let width =  decode_long(&bytes[read as usize..bytes.len()], &mut read)?;
+        let height =  decode_long(&bytes[read as usize..bytes.len()], &mut read)?;
+        let enum_value =  decode_size(&bytes[read as usize..bytes.len()], &mut read);
         let enum_type = match RectType::try_from(enum_value) {
             Ok(enum_type) => enum_type,
             _ => {
                 return Err(Error::CannotDeserialize)
             }
         };
+        *read_bytes = *read_bytes + read;
 
-        Ok((RectProps{
+        Ok(RectProps{
             width: width,
             height: height,
             rect_type: enum_type
-        }, read_bytes))
+        })
     }
 }
 
@@ -127,8 +122,8 @@ impl FromEncapsulation for Rect {
     type Output = Rect;
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error> {
-        let (rect, _) = Rect::from_bytes(&body.data)?;
-        Ok(rect)
+        let mut read_bytes = 0;
+        Rect::from_bytes(&body.data, &mut read_bytes)
     }
 }
 
@@ -148,8 +143,8 @@ impl FromEncapsulation for RectProps {
     type Output = RectProps;
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error> {
-        let (props, _) = RectProps::from_bytes(&body.data)?;
-        Ok(props)
+        let mut read_bytes = 0;
+        RectProps::from_bytes(&body.data, &mut read_bytes)
     }
 }
 
@@ -233,6 +228,7 @@ mod test {
 
     #[test]
     fn test_rect_encoding() {
+        let mut read_bytes = 0;
         let rect = Rect {
             left: 0,
             right: 100,
@@ -240,9 +236,9 @@ mod test {
             bottom: 50
         };
         let bytes = rect.as_bytes().expect("Cannot encode test rect");
-        let (decoded, read) = Rect::from_bytes(&bytes).expect("Cannot decode test rect");
+        let decoded = Rect::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test rect");
 
-        assert_eq!(32, read);
+        assert_eq!(32, read_bytes);
         assert_eq!(rect.left, decoded.left);
         assert_eq!(rect.right, decoded.right);
         assert_eq!(rect.top, decoded.top);
@@ -251,15 +247,16 @@ mod test {
 
     #[test]
     fn test_rect_props_encoding() {
+        let mut read_bytes = 0;
         let props = RectProps {
             width: 0,
             height: 100,
             rect_type: RectType::Rect
         };
         let bytes = props.as_bytes().expect("Cannot encode test rect props");
-        let (decoded, read) = RectProps::from_bytes(&bytes).expect("Cannot decode test rect props");
+        let decoded = RectProps::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test rect props");
 
-        assert_eq!(17, read);
+        assert_eq!(17, read_bytes);
         assert_eq!(props.width, decoded.width);
         assert_eq!(props.height, decoded.height);
         assert_eq!(props.rect_type, decoded.rect_type);

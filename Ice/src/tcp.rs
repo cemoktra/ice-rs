@@ -36,11 +36,12 @@ impl Transport for TcpTransport {
     fn read_message(&mut self) -> Result<MessageType, Error>
     {
         let bytes = self.stream.read(&mut self.buffer)?;
-        let (header, read) = Header::from_bytes(&self.buffer[0..bytes])?;
+        let mut read: i32 = 0;
+        let header = Header::from_bytes(&self.buffer[read as usize..bytes], &mut read)?;
 
         match header.message_type {
             2 => {
-                let (reply, _) = ReplyData::from_bytes(&self.buffer[read as usize..bytes as usize])?;
+                let reply = ReplyData::from_bytes(&self.buffer[read as usize..bytes as usize], &mut read)?;
                 Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
