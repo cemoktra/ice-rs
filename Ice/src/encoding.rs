@@ -33,7 +33,7 @@ pub trait AsEncapsulation {
 
 // BASIC ENCODING FUNCTIONS
 
-fn encode_size(size: i32) -> Vec<u8> {
+pub fn encode_size(size: i32) -> Vec<u8> {
     if size < 255 {
         vec![size as u8]
     } else {
@@ -43,13 +43,13 @@ fn encode_size(size: i32) -> Vec<u8> {
     }
 }
 
-pub fn decode_size(bytes: &[u8]) -> (i32, u8) {
+pub fn decode_size(bytes: &[u8]) -> (i32, i32) {
     if bytes[0] == 255 {
         if bytes.len() < 5 {
             (0, 0)
         } else {            
             match decode_int(&bytes[1..5]) {
-                Ok(size) => (size, 5),
+                Ok((size, read)) => (size, read + 1),
                 _ => (0, 0)
             }
         }
@@ -62,21 +62,21 @@ pub fn decode_size(bytes: &[u8]) -> (i32, u8) {
     }
 }
 
-fn encode_string(s: &str) -> Vec<u8>
+pub fn encode_string(s: &str) -> Vec<u8>
 {  
     let mut bytes = encode_size(s.len() as i32);
     bytes.extend(s.as_bytes());
     bytes
 }
 
-fn decode_string(bytes: &[u8]) -> Result<(String, i32), Error>
+pub fn decode_string(bytes: &[u8]) -> Result<(String, i32), Error>
 {  
     let (size, read) = decode_size(bytes);
     let s = String::from_utf8(bytes[read as usize..read as usize + size as usize].to_vec())?;
     Ok((s, read as i32 + size))
 }
 
-fn encode_dict(dict: &HashMap<String, String>) -> Vec<u8> {
+pub fn encode_dict(dict: &HashMap<String, String>) -> Vec<u8> {
     let mut bytes = encode_size(dict.len() as i32);
     for (key, value) in dict {
         bytes.extend(encode_string(key));
@@ -85,7 +85,7 @@ fn encode_dict(dict: &HashMap<String, String>) -> Vec<u8> {
     bytes
 }
 
-fn decode_dict(bytes: &[u8]) -> Result<(HashMap<String, String>, i32), Error> {
+pub fn decode_dict(bytes: &[u8]) -> Result<(HashMap<String, String>, i32), Error> {
     let (size, read) = decode_size(bytes);
     let mut dict: HashMap<String, String> = HashMap::new();
     let mut current_position = read as i32;
@@ -100,7 +100,7 @@ fn decode_dict(bytes: &[u8]) -> Result<(HashMap<String, String>, i32), Error> {
     Ok((dict, current_position))
 }
 
-fn encode_string_seq(seq: &Vec<String>) -> Vec<u8> {
+pub fn encode_string_seq(seq: &Vec<String>) -> Vec<u8> {
     let mut bytes = encode_size(seq.len() as i32);
     for item in seq {
         bytes.extend(encode_string(item));
@@ -108,7 +108,7 @@ fn encode_string_seq(seq: &Vec<String>) -> Vec<u8> {
     bytes
 }
 
-fn decode_string_seq(bytes: &[u8]) -> Result<(Vec<String>, i32), Error> {
+pub fn decode_string_seq(bytes: &[u8]) -> Result<(Vec<String>, i32), Error> {
     let (size, read) = decode_size(bytes);
     let mut string_seq: Vec<String> = vec![];
     let mut current_position = read as i32;
@@ -127,13 +127,13 @@ pub fn encode_short(n: i16) -> Vec<u8>
     n.to_le_bytes().to_vec()
 }
 
-pub fn decode_short(bytes: &[u8]) -> Result<i16, Error>
+pub fn decode_short(bytes: &[u8]) -> Result<(i16, i32), Error>
 {   
     if bytes.len() < 2 {
         return Err(Error::CannotDeserialize);
     }
     match bytes[0..2].try_into() {
-        Ok(barray) => Ok(i16::from_le_bytes(barray)),
+        Ok(barray) => Ok((i16::from_le_bytes(barray), 2)),
         _ => Err(Error::CannotDeserialize)
     }
 }
@@ -143,13 +143,13 @@ pub fn encode_int(n: i32) -> Vec<u8>
     n.to_le_bytes().to_vec()
 }
 
-pub fn decode_int(bytes: &[u8]) -> Result<i32, Error>
+pub fn decode_int(bytes: &[u8]) -> Result<(i32, i32), Error>
 {   
     if bytes.len() < 4 {
         return Err(Error::CannotDeserialize);
     }
     match bytes[0..4].try_into() {
-        Ok(barray) => Ok(i32::from_le_bytes(barray)),
+        Ok(barray) => Ok((i32::from_le_bytes(barray), 4)),
         _ => Err(Error::CannotDeserialize)
     }
 }
@@ -159,13 +159,13 @@ pub fn encode_long(n: i64) -> Vec<u8>
     n.to_le_bytes().to_vec()
 }
 
-pub fn decode_long(bytes: &[u8]) -> Result<i64, Error>
+pub fn decode_long(bytes: &[u8]) -> Result<(i64, i32), Error>
 {   
     if bytes.len() < 8 {
         return Err(Error::CannotDeserialize);
     }
     match bytes[0..8].try_into() {
-        Ok(barray) => Ok(i64::from_le_bytes(barray)),
+        Ok(barray) => Ok((i64::from_le_bytes(barray), 8)),
         _ => Err(Error::CannotDeserialize)
     }
 }
@@ -175,12 +175,12 @@ pub fn encode_bool(b: bool) -> Vec<u8>
     vec![if b { 1 } else { 0 }]
 }
 
-pub fn decode_bool(bytes: &[u8]) -> Result<bool, Error>
+pub fn decode_bool(bytes: &[u8]) -> Result<(bool, i32), Error>
 {   
     if bytes.len() < 1 {
         return Err(Error::CannotDeserialize);
     }
-    Ok(bytes[0] != 0)
+    Ok((bytes[0] != 0, 1))
 }
 
 
@@ -258,7 +258,8 @@ impl FromEncapsulation for bool {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        decode_bool(&body.data)
+        let (value, _) = decode_bool(&body.data)?;
+        Ok(value)
     }
 }
 
@@ -279,7 +280,8 @@ impl FromEncapsulation for i16 {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        decode_short(&body.data)
+        let (value, _) = decode_short(&body.data)?;
+        Ok(value)
     }
 }
 
@@ -300,7 +302,8 @@ impl FromEncapsulation for i32 {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        decode_int(&body.data)
+        let (value, _) = decode_int(&body.data)?;
+        Ok(value)
     }
 }
 
@@ -321,7 +324,8 @@ impl FromEncapsulation for i64 {
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
     {
-        decode_long(&body.data)
+        let (value, _) = decode_long(&body.data)?;
+        Ok(value)
     }
 }
 
@@ -425,9 +429,10 @@ impl AsBytes for RequestData {
 
 impl FromBytes for RequestData {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, i32), Error> {
-        let mut read_bytes = 4;
-        let request_id = decode_int(bytes)?;
-        let (id, read) = Identity::from_bytes(&bytes[4..bytes.len()])?;
+        let mut read_bytes = 0;
+        let (request_id, read) = decode_int(bytes)?;
+        read_bytes = read_bytes + read;
+        let (id, read) = Identity::from_bytes(&bytes[read_bytes as usize..bytes.len()])?;
         read_bytes = read_bytes + read;
         let (facet, read) = decode_string_seq(&bytes[read_bytes as usize..bytes.len()])?;
         read_bytes = read_bytes + read;
