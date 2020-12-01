@@ -38,7 +38,7 @@ fn encode_size(size: i32) -> Vec<u8> {
         vec![size as u8]
     } else {
         let mut bytes = vec![255];
-        bytes.extend(&size.to_le_bytes());
+        bytes.extend(encode_int(size));
         bytes
     }
 }
@@ -47,14 +47,18 @@ pub fn decode_size(bytes: &[u8]) -> (i32, u8) {
     if bytes[0] == 255 {
         if bytes.len() < 5 {
             (0, 0)
-        } else {
-            match bytes[0..4].try_into() {
-                Ok(barray) => (i32::from_le_bytes(barray), 5),
+        } else {            
+            match decode_int(&bytes[1..5]) {
+                Ok(size) => (size, 5),
                 _ => (0, 0)
             }
         }
     } else {
-        (bytes[0] as i32, 1)
+        if bytes.len() < 1 {
+            (0, 0)
+        } else  {
+            (bytes[0] as i32, 1)
+        }
     }
 }
 
@@ -79,6 +83,21 @@ fn encode_dict(dict: &HashMap<String, String>) -> Vec<u8> {
         bytes.extend(encode_string(value));
     }
     bytes
+}
+
+fn decode_dict(bytes: &[u8]) -> Result<HashMap<String, String>, Error> {
+    let (size, read) = decode_size(bytes);
+    let mut dict: HashMap<String, String> = HashMap::new();
+    let mut current_position = read as i32;
+
+    for _i in 0..size {
+        let (key, read) = decode_string(&bytes[current_position as usize..bytes.len()])?;
+        current_position = current_position + read;
+        let (value, read) = decode_string(&bytes[current_position as usize..bytes.len()])?;
+        current_position = current_position + read;
+        dict.insert(key, value);
+    }
+    Ok(dict)
 }
 
 fn encode_string_seq(seq: &Vec<String>) -> Vec<u8> {
@@ -339,3 +358,72 @@ impl FromBytes for Header {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_size_encoding() {
+        let encoded = encode_size(10);
+        let (decoded, bytes) = decode_size(&encoded);
+        assert_eq!(10, decoded);
+        assert_eq!(1, bytes);
+
+        let encoded = encode_size(500);
+        let (decoded, bytes) = decode_size(&encoded);
+        assert_eq!(500, decoded);
+        assert_eq!(5, bytes);
+    }
+
+    #[test]
+    fn test_string_encoding() {
+        let encoded = encode_string("Hello");
+        let (decoded, bytes) = decode_string(&encoded).expect("Cannot decode test string");
+        assert_eq!("Hello", decoded);
+        assert_eq!(6, bytes);
+    }
+
+    #[test]
+    fn test_dict_encoding() {
+        let mut dict = HashMap::new();
+        dict.insert(String::from("Hello"), String::from("World"));
+
+        let encoded = encode_dict(&dict);
+        let decoded = decode_dict(&encoded).expect("Cannot decode test dict");
+        assert!(decoded.contains_key("Hello"));
+        assert_eq!("World", decoded.get("Hello").unwrap_or(&String::from("")));
+    }
+
+    #[test]
+    fn test_string_seq_encoding() {
+        let seq = vec![String::from("Hello"), String::from("World")];
+        let encoded = encode_string_seq(&seq);
+        let decoded = decode_string_seq(&encoded).expect("Cannot decode test dict");
+        assert_eq!(2, decoded.len());
+        assert_eq!(seq, decoded);
+    }
+
+    #[test]
+    fn test_short_encoding() {
+        let value: i16 = 3;
+        let encoded = encode_short(value);
+        let decoded = decode_short(&encoded).expect("Cannot decode test dict");
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn test_int_encoding() {
+        let value: i32 = 3;
+        let encoded = encode_int(value);
+        let decoded = decode_int(&encoded).expect("Cannot decode test dict");
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn test_long_encoding() {
+        let value: i64 = 3;
+        let encoded = encode_long(value);
+        let decoded = decode_long(&encoded).expect("Cannot decode test dict");
+        assert_eq!(value, decoded);
+    }
+}
