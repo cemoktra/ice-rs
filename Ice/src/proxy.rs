@@ -41,8 +41,7 @@ impl Proxy {
             MessageType::Reply(_header, reply) => {
                 Ok(reply)
             },
-            // TODO: create error
-            _ => Err(Error::UnknownMessageType) 
+            _ => Err(Error::ProtocolError) 
         }
     }
 }

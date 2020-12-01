@@ -93,7 +93,7 @@ impl FromBytes for RectProps {
         let enum_type = match RectType::try_from(enum_value) {
             Ok(enum_type) => enum_type,
             _ => {
-                return Err(Error::CannotDeserialize)
+                return Err(Error::DecodingError)
             }
         };
         *read_bytes = *read_bytes + read;
@@ -204,7 +204,7 @@ impl HelloPrx {
         };
 
         if !hello_proxy.ice_is_a()? {
-            return Err(Error::TcpCannotConnect);
+            return Err(Error::TcpError);
         }
 
         Ok(hello_proxy)

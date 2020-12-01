@@ -8,7 +8,7 @@ use std::string::FromUtf8Error;
 
 impl std::convert::From<FromUtf8Error> for Error {
     fn from(_err: FromUtf8Error) -> Error {
-        Error::CannotDeserialize
+        Error::DecodingError
     }
 }
 
@@ -139,14 +139,14 @@ pub fn encode_short(n: i16) -> Vec<u8>
 pub fn decode_short(bytes: &[u8], read_bytes: &mut i32) -> Result<i16, Error>
 {   
     if bytes.len() < 2 {
-        return Err(Error::CannotDeserialize);
+        return Err(Error::DecodingError);
     }
     match bytes[0..2].try_into() {
         Ok(barray) => {
             *read_bytes = *read_bytes + 2;
             Ok(i16::from_le_bytes(barray))
         },
-        _ => Err(Error::CannotDeserialize)
+        _ => Err(Error::DecodingError)
     }
 }
 
@@ -158,14 +158,14 @@ pub fn encode_int(n: i32) -> Vec<u8>
 pub fn decode_int(bytes: &[u8], read_bytes: &mut i32) -> Result<i32, Error>
 {   
     if bytes.len() < 4 {
-        return Err(Error::CannotDeserialize);
+        return Err(Error::DecodingError);
     }
     match bytes[0..4].try_into() {
         Ok(barray) => {
             *read_bytes = *read_bytes + 4;
             Ok(i32::from_le_bytes(barray))
         },
-        _ => Err(Error::CannotDeserialize)
+        _ => Err(Error::DecodingError)
     }
 }
 
@@ -177,14 +177,14 @@ pub fn encode_long(n: i64) -> Vec<u8>
 pub fn decode_long(bytes: &[u8], read_bytes: &mut i32) -> Result<i64, Error>
 {   
     if bytes.len() < 8 {
-        return Err(Error::CannotDeserialize);
+        return Err(Error::DecodingError);
     }
     match bytes[0..8].try_into() {
         Ok(barray) => {
             *read_bytes = *read_bytes + 8;
             Ok(i64::from_le_bytes(barray))
         },
-        _ => Err(Error::CannotDeserialize)
+        _ => Err(Error::DecodingError)
     }
 }
 
@@ -196,7 +196,7 @@ pub fn encode_bool(b: bool) -> Vec<u8>
 pub fn decode_bool(bytes: &[u8], read_bytes: &mut i32) -> Result<bool, Error>
 {   
     if bytes.len() < 1 {
-        return Err(Error::CannotDeserialize);
+        return Err(Error::DecodingError);
     }
     *read_bytes = *read_bytes + 1;
     Ok(bytes[0] != 0)
@@ -414,7 +414,7 @@ impl FromBytes for Encapsulation {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
         let mut read: i32 = 0;
         if bytes.len() < 6 {
-            return Err(Error::CannotDeserialize);
+            return Err(Error::DecodingError);
         }
 
         let size = decode_int(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -489,7 +489,7 @@ impl FromBytes for ReplyData {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
         let mut read: i32 = 0;
         if bytes.len() < 11 {
-            return Err(Error::CannotDeserialize);
+            return Err(Error::DecodingError);
         }
 
         let request_id = decode_int(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -524,12 +524,12 @@ impl AsBytes for Header {
 impl FromBytes for Header {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
         if bytes.len() < 14 {
-            return Err(Error::CannotDeserialize);
+            return Err(Error::DecodingError);
         }
 
         let magic = String::from_utf8(bytes[0..4].to_vec())?;
         if magic != "IceP" {
-            return Err(Error::WrongProtocolMagic);
+            return Err(Error::ProtocolError);
         }        
         let mut read: i32 = 4;
         let protocol_major = decode_byte(&bytes[read as usize..bytes.len()], &mut read)?;

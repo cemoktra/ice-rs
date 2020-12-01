@@ -13,7 +13,7 @@ pub struct TcpTransport {
 
 impl std::convert::From<std::io::Error> for Error {
     fn from(_err: std::io::Error) -> Error {
-        Error::TcpCannotConnect
+        Error::TcpError
     }
 }
 
@@ -27,7 +27,7 @@ impl TcpTransport {
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Error::TcpCannotConnect)
+            _ => Err(Error::TcpError)
         }
     }
 }
@@ -45,7 +45,7 @@ impl Transport for TcpTransport {
                 Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
-            _ => Err(Error::UnknownMessageType)
+            _ => Err(Error::ProtocolError)
         }
     }
 
@@ -55,7 +55,7 @@ impl Transport for TcpTransport {
         let bytes = header.as_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Error::MessageWriteError);
+            return Err(Error::TcpError);
         }
 
         Ok(())
@@ -70,7 +70,7 @@ impl Transport for TcpTransport {
 
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Error::MessageWriteError);
+            return Err(Error::TcpError);
         }
         Ok(())
     }
