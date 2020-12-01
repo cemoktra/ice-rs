@@ -61,9 +61,9 @@ impl Header {
         Header {
             magic: String::from("IceP"),
             protocol_major: 1,
-            protocol_minor: 1,
+            protocol_minor: 0,
             encoding_major: 1,
-            encoding_minor: 1,
+            encoding_minor: 0,
             message_type: message_type,
             compression_status: 0,
             message_size: message_size

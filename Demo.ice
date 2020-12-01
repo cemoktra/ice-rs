@@ -4,7 +4,7 @@
 
 #pragma once
 
-module Demo
+module RustDemo
 {
     enum RectType {
         Rect,
@@ -24,7 +24,7 @@ module Demo
         RectType type;
     }
 
-    interface Hello
+    interface Demo
     {
         void sayHello();
         void say(string text);

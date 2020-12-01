@@ -8,10 +8,10 @@ import sys
 import Ice
 
 Ice.loadSlice('../Demo.ice')
-import Demo
+import RustDemo
 
 
-class HelloI(Demo.Hello):
+class DemoI(RustDemo.Demo):
     def sayHello(self, current):
         print("Hello World!")
         
@@ -19,10 +19,10 @@ class HelloI(Demo.Hello):
         print(text)
 
     def calcRect(self, rc, current):
-        props = Demo.RectProps()
+        props = RustDemo.RectProps()
         props.width = rc.right - rc.left
         props.height = rc.bottom - rc.top
-        props.type = Demo.RectType.Square if props.width == props.height else Demo.RectType.Rect
+        props.type = RustDemo.RectType.Square if props.width == props.height else RustDemo.RectType.Rect
         return props
 
 
@@ -38,7 +38,7 @@ with Ice.initialize(sys.argv) as communicator:
     signal.signal(signal.SIGINT, lambda signum, frame: communicator.shutdown())
     if hasattr(signal, 'SIGBREAK'):
         signal.signal(signal.SIGBREAK, lambda signum, frame: communicator.shutdown())
-    adapter = communicator.createObjectAdapterWithEndpoints("Hello", "default -h localhost -p 10000")
-    adapter.add(HelloI(), Ice.stringToIdentity("hello"))
+    adapter = communicator.createObjectAdapterWithEndpoints("Demo", "default -h localhost -p 10000")
+    adapter.add(DemoI(), Ice.stringToIdentity("demo"))
     adapter.activate()
     communicator.waitForShutdown()

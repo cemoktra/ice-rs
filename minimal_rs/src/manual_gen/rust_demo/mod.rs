@@ -35,13 +35,13 @@ pub struct RectProps {
 }
 
 
-pub trait Hello {
+pub trait Demo {
     // base ice
     fn ice_ping(&mut self) -> Result<(), Error>;
     fn ice_is_a(&mut self) -> Result<bool, Error>;
     fn ice_id(&mut self) -> Result<String, Error>;
     fn ice_ids(&mut self) -> Result<Vec<String>, Error>;
-    // hello interface
+    // demo interface
     fn say_hello(&mut self) -> Result<(), Error>;
     fn say(&mut self, text: &str) -> Result<(), Error>;
     fn calc_rect(&mut self, rc: Rect) -> Result<RectProps, Error>;
@@ -148,13 +148,13 @@ impl FromEncapsulation for RectProps {
     }
 }
 
-pub struct HelloPrx
+pub struct DemoPrx
 {
     proxy: Proxy
 }
 
 
-impl Hello for HelloPrx {
+impl Demo for DemoPrx {
     fn ice_ping(&mut self) -> Result<(), Error>
     {
         self.dispatch(&String::from("ice_ping"), 1, Encapsulation::empty())?;
@@ -162,7 +162,7 @@ impl Hello for HelloPrx {
     }
 
     fn ice_is_a(&mut self) -> Result<bool, Error> {
-        let reply = self.dispatch(&String::from("ice_isA"), 1, HelloPrx::TYPE_ID.as_encapsulation()?)?;
+        let reply = self.dispatch(&String::from("ice_isA"), 1, DemoPrx::TYPE_ID.as_encapsulation()?)?;
         bool::from_encapsulation(reply.body)
     }
 
@@ -194,25 +194,25 @@ impl Hello for HelloPrx {
     }
 }
 
-impl HelloPrx {
-    const TYPE_ID: &'static str = "::Demo::Hello";
-    const NAME: &'static str = "hello";
+impl DemoPrx {
+    const TYPE_ID: &'static str = "::RustDemo::Demo";
+    const NAME: &'static str = "demo";
 
-    pub fn checked_cast(proxy: Proxy) -> Result<HelloPrx, Error> {
-        let mut hello_proxy = HelloPrx {
+    pub fn checked_cast(proxy: Proxy) -> Result<DemoPrx, Error> {
+        let mut demo_proxy = DemoPrx {
             proxy: proxy
         };
 
-        if !hello_proxy.ice_is_a()? {
+        if !demo_proxy.ice_is_a()? {
             return Err(Error::TcpError);
         }
 
-        Ok(hello_proxy)
+        Ok(demo_proxy)
     }
 
     fn dispatch(&mut self, op: &str, mode: u8, params: Encapsulation) -> Result<ReplyData, Error> {
         let req = self.proxy.create_request(
-            &HelloPrx::NAME, 
+            &DemoPrx::NAME, 
             op,
             mode, 
             params
