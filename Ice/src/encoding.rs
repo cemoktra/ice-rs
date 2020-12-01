@@ -188,6 +188,44 @@ pub fn decode_long(bytes: &[u8], read_bytes: &mut i32) -> Result<i64, Error>
     }
 }
 
+pub fn encode_float(n: f32) -> Vec<u8>
+{  
+    n.to_le_bytes().to_vec()
+}
+
+pub fn decode_float(bytes: &[u8], read_bytes: &mut i32) -> Result<f32, Error>
+{   
+    if bytes.len() < 4 {
+        return Err(Error::DecodingError);
+    }
+    match bytes[0..4].try_into() {
+        Ok(barray) => {
+            *read_bytes = *read_bytes + 4;
+            Ok(f32::from_le_bytes(barray))
+        },
+        _ => Err(Error::DecodingError)
+    }
+}
+
+pub fn encode_double(n: f64) -> Vec<u8>
+{  
+    n.to_le_bytes().to_vec()
+}
+
+pub fn decode_double(bytes: &[u8], read_bytes: &mut i32) -> Result<f64, Error>
+{   
+    if bytes.len() < 8 {
+        return Err(Error::DecodingError);
+    }
+    match bytes[0..8].try_into() {
+        Ok(barray) => {
+            *read_bytes = *read_bytes + 8;
+            Ok(f64::from_le_bytes(barray))
+        },
+        _ => Err(Error::DecodingError)
+    }
+}
+
 pub fn encode_bool(b: bool) -> Vec<u8>
 {  
     vec![if b { 1 } else { 0 }]
@@ -348,6 +386,49 @@ impl FromEncapsulation for i64 {
     }
 }
 
+impl AsEncapsulation for f32 {
+    fn as_encapsulation(&self) -> Result<Encapsulation, Error> {
+        let encoded = encode_float(*self);
+        Ok(Encapsulation {
+            size: 6 + encoded.len() as i32,
+            major: 1,
+            minor: 1,
+            data: encoded
+        })
+    }
+}
+
+impl FromEncapsulation for f32 {
+    type Output = Self;
+
+    fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
+    {
+        let mut read_bytes = 0;
+        decode_float(&body.data, &mut read_bytes)
+    }
+}
+
+impl AsEncapsulation for f64 {
+    fn as_encapsulation(&self) -> Result<Encapsulation, Error> {
+        let encoded = encode_double(*self);
+        Ok(Encapsulation {
+            size: 6 + encoded.len() as i32,
+            major: 1,
+            minor: 1,
+            data: encoded
+        })
+    }
+}
+
+impl FromEncapsulation for f64 {
+    type Output = Self;
+
+    fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error>
+    {
+        let mut read_bytes = 0;
+        decode_double(&body.data, &mut read_bytes)
+    }
+}
 
 impl AsEncapsulation for HashMap<String, String> {
     fn as_encapsulation(&self) -> Result<Encapsulation, Error> {
@@ -632,6 +713,24 @@ mod test {
     }
 
     #[test]
+    fn test_float_encoding() {
+        let mut read_bytes = 0;
+        let value: f32 = 3.14;
+        let encoded = encode_float(value);
+        let decoded = decode_float(&encoded, &mut read_bytes).expect("Cannot decode test float");
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn test_double_encoding() {
+        let mut read_bytes = 0;
+        let value: f64 = 3.14;
+        let encoded = encode_double(value);
+        let decoded = decode_double(&encoded, &mut read_bytes).expect("Cannot decode double long");
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
     fn test_bool_encoding() {
         let mut read_bytes = 0;
         let value = true;
@@ -691,6 +790,24 @@ mod test {
         let encapsulation = value.as_encapsulation().expect("Cannot encapsulate test long");
         assert_eq!(14, encapsulation.size);
         let decoded = i64::from_encapsulation(encapsulation).expect("Cannot decode test long from encapsulation");
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn test_float_encapsulation() {
+        let value: f32 = 3.14;
+        let encapsulation = value.as_encapsulation().expect("Cannot encapsulate test float");
+        assert_eq!(10, encapsulation.size);
+        let decoded = f32::from_encapsulation(encapsulation).expect("Cannot decode test float from encapsulation");
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn test_double_encapsulation() {
+        let value: f64 = 3.14;
+        let encapsulation = value.as_encapsulation().expect("Cannot encapsulate test double");
+        assert_eq!(14, encapsulation.size);
+        let decoded = f64::from_encapsulation(encapsulation).expect("Cannot decode test double from encapsulation");
         assert_eq!(value, decoded);
     }
 
