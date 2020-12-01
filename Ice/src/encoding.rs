@@ -388,7 +388,6 @@ impl FromBytes for Identity {
         let mut read = 0;
         let name = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
         let category = decode_string(&bytes[read as usize..bytes.len()], &mut read)?;
-        println!("identity with  {} bytes", read);
         *read_bytes = *read_bytes + read;
         Ok(Identity {
             name: name,
