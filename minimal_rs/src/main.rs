@@ -2,8 +2,7 @@ use ice_rs::errors::Error;
 use ice_rs::communicator::Communicator;
 
 mod manual_gen;
-use crate::manual_gen::demo::hello::HelloPrx;
-use crate::manual_gen::demo::traits::{Hello,Rect};
+use crate::manual_gen::demo::{Hello,HelloPrx,Rect};
 
 
 
