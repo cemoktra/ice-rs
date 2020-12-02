@@ -4,7 +4,7 @@ use ice_rs::encoding::{
 };
 use ice_rs::protocol::{Encapsulation, ReplyData};
 use ice_rs::proxy::Proxy;
-
+use ice_rs::iceobject::IceObject;
 
 // only for enums
 use num_enum::TryFromPrimitive;
@@ -34,12 +34,7 @@ pub struct RectProps {
 }
 
 
-pub trait Demo {
-    // base ice
-    fn ice_ping(&mut self) -> Result<(), Error>;
-    fn ice_is_a(&mut self) -> Result<bool, Error>;
-    fn ice_id(&mut self) -> Result<String, Error>;
-    fn ice_ids(&mut self) -> Result<Vec<String>, Error>;
+pub trait Demo : IceObject {
     // demo interface
     fn say_hello(&mut self) -> Result<(), Error>;
     fn say(&mut self, text: &str) -> Result<(), Error>;
@@ -153,30 +148,22 @@ pub struct DemoPrx
 }
 
 
+impl IceObject for DemoPrx {
+    const TYPE_ID: &'static str = "::RustDemo::Demo";
+    const NAME: &'static str = "demo";
+
+    fn dispatch(&mut self, op: &str, mode: u8, params: Encapsulation) -> Result<ReplyData, Error> {
+        let req = self.proxy.create_request(
+            &DemoPrx::NAME, 
+            op,
+            mode, 
+            params
+        );
+        self.proxy.make_request(&req)
+    }
+}
+
 impl Demo for DemoPrx {
-    fn ice_ping(&mut self) -> Result<(), Error>
-    {
-        self.dispatch(&String::from("ice_ping"), 1, Encapsulation::empty())?;
-        Ok(())
-    }
-
-    fn ice_is_a(&mut self) -> Result<bool, Error> {
-        let reply = self.dispatch(&String::from("ice_isA"), 1, DemoPrx::TYPE_ID.as_encapsulation()?)?;
-        bool::from_encapsulation(reply.body)
-    }
-
-    fn ice_id(&mut self) -> Result<String, Error>
-    {
-        let reply = self.dispatch(&String::from("ice_id"), 1, Encapsulation::empty())?;
-        String::from_encapsulation(reply.body)
-    }
-
-    fn ice_ids(&mut self) -> Result<Vec<String>, Error>
-    {
-        let reply = self.dispatch(&String::from("ice_ids"), 1, Encapsulation::empty())?;
-        Vec::from_encapsulation(reply.body)
-    }
-
     fn say_hello(&mut self) -> Result<(), Error> {
         self.dispatch(&String::from("sayHello"), 0, Encapsulation::empty())?;
         Ok(())
@@ -194,9 +181,6 @@ impl Demo for DemoPrx {
 }
 
 impl DemoPrx {
-    const TYPE_ID: &'static str = "::RustDemo::Demo";
-    const NAME: &'static str = "demo";
-
     pub fn checked_cast(proxy: Proxy) -> Result<DemoPrx, Error> {
         let mut demo_proxy = DemoPrx {
             proxy: proxy
@@ -207,17 +191,7 @@ impl DemoPrx {
         }
 
         Ok(demo_proxy)
-    }
-
-    fn dispatch(&mut self, op: &str, mode: u8, params: Encapsulation) -> Result<ReplyData, Error> {
-        let req = self.proxy.create_request(
-            &DemoPrx::NAME, 
-            op,
-            mode, 
-            params
-        );
-        self.proxy.make_request(&req)
-    }
+    }    
 }
 
 
