@@ -21,7 +21,7 @@ module RustDemo
     struct RectProps {
         long width;
         long height;
-        RectType rect_type;
+        RectType rectType;
     }
 
     interface Demo

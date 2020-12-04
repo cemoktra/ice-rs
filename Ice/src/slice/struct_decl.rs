@@ -41,13 +41,13 @@ impl Struct {
 
         let mut lines = Vec::new();
         for (key, _) in &self.members {
-            lines.push(format!("bytes.extend(self.{}.to_bytes()?);\n", key));
+            lines.push(format!("bytes.extend(self.{}.to_bytes()?);\n", snakecase::to_snake_case(key)));
         }
         writer::write_to_bytes(file, &self.class_name(), lines)?;
 
         let mut lines = Vec::new();
         for (key, var_type) in &self.members {
-            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", key, var_type.rust_type()));
+            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", snakecase::to_snake_case(key), var_type.rust_type()));
         }
         writer::write_from_bytes(file, &self.class_name(), lines)?;
 

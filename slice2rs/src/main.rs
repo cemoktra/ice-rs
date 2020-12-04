@@ -39,7 +39,7 @@ fn main() -> Result<(), Error> {
     let mut rect_props = Struct::new("RectProps");
     rect_props.add_member("width", IceType::LongType);
     rect_props.add_member("height", IceType::LongType);
-    rect_props.add_member("rect_type", IceType::CustomType(String::from("RectType")));
+    rect_props.add_member("rectType", IceType::CustomType(String::from("RectType")));
     rust_demo.add_struct(&rect_props);
 
     let mut demo = Interface::new("Demo");
