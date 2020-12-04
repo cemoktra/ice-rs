@@ -17,7 +17,7 @@ impl Proxy {
         })
     }
 
-    pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: Encapsulation) -> RequestData {
+    pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation) -> RequestData {
         self.request_id = self.request_id + 1;
         RequestData {
             request_id: self.request_id,
@@ -29,7 +29,7 @@ impl Proxy {
             operation: String::from(operation),
             mode: mode,
             context: std::collections::HashMap::new(),
-            params: params
+            params: params.clone()
         }
     }
 

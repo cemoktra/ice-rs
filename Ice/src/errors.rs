@@ -4,4 +4,6 @@ pub enum Error {
     DecodingError,
     TcpError,
     ProtocolError,
+    ParsingError,
+    Unexpected
 }  

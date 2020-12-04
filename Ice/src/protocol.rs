@@ -30,7 +30,7 @@ pub struct Identity {
     pub category: String
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Encapsulation {
     pub size: i32,
     pub major: u8,

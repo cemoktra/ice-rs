@@ -2,8 +2,8 @@ use ice_rs::errors::Error;
 use ice_rs::communicator::Communicator;
 use ice_rs::iceobject::IceObject;
 
-mod manual_gen;
-use crate::manual_gen::rust_demo::{Demo,DemoPrx,Rect};
+mod gen;
+use crate::gen::rust_demo::{Demo,DemoPrx,Rect};
 
 
 
@@ -16,7 +16,7 @@ fn main() -> Result<(), Error> {
     println!("ice_id: {:?}", IceObject::ice_id(&mut demo_prx));
     println!("ice_ids: {:?}", IceObject::ice_ids(&mut demo_prx));
     println!("ice_is_a: {:?}", IceObject::ice_is_a(&mut demo_prx));
-    println!("say: {:?}", demo_prx.say("Hello from Rust"));
+    println!("say: {:?}", demo_prx.say(&String::from("Hello from Rust")));
     println!("sayHello: {:?}", demo_prx.say_hello());
 
     let rc = Rect {
@@ -25,7 +25,7 @@ fn main() -> Result<(), Error> {
         top: 0,
         bottom: 50
     };
-    println!("calcRect({:?}): {:?}", rc, demo_prx.calc_rect(rc));
+    println!("calcRect({:?}): {:?}", rc, demo_prx.calc_rect(&rc));
 
     Ok(())
 }

@@ -6,3 +6,4 @@ pub mod transport;
 pub mod proxy;
 pub mod communicator;
 pub mod iceobject;
+pub mod slice;

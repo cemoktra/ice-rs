@@ -1,5 +1,5 @@
 [package]
-name = "ice-rs"
+name = "demo-rs"
 version = "0.1.0"
 authors = ["cemoktra <b.schubert82@gmail.com>"]
 edition = "2018"
@@ -7,5 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-regex = "1"
-Inflector = "0.11"
+ice-rs = { path = "../Ice" }
+num_enum = "0.5"

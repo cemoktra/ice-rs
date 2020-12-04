@@ -22,7 +22,7 @@ class DemoI(RustDemo.Demo):
         props = RustDemo.RectProps()
         props.width = rc.right - rc.left
         props.height = rc.bottom - rc.top
-        props.type = RustDemo.RectType.Square if props.width == props.height else RustDemo.RectType.Rect
+        props.rect_type = RustDemo.RectType.Square if props.width == props.height else RustDemo.RectType.Rect
         return props
 
 
