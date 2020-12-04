@@ -1,15 +1,15 @@
 // This file has been generated.
 
+use ice_rs::proxy::Proxy;
 use ice_rs::protocol::{Encapsulation, ReplyData};
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
+use ice_rs::iceobject::IceObject;
 use ice_rs::encoding::{
    ToBytes, FromBytes, AsEncapsulation, FromEncapsulation
 };
-use ice_rs::proxy::Proxy;
 use ice_rs::encoding::IceSize;
 use ice_rs::errors::Error;
-use ice_rs::iceobject::IceObject;
-use std::convert::TryFrom;
-use num_enum::TryFromPrimitive;
 
 #[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
 #[repr(i32)]
