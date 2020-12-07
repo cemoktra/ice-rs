@@ -1,7 +1,7 @@
 use crate::slice::function::Function;
+use crate::slice::writer;
 use crate::errors::Error;
 use std::fs::File;
-use std::io::prelude::*;
 use inflector::cases::classcase;
 
 
@@ -28,42 +28,38 @@ impl Interface {
     }
 
     pub fn write(&self, file: &mut File, mod_path: &str, context: &str) -> Result<(), Error> {
-        file.write_all(format!("pub trait {} : IceObject {{\n", self.class_name()).as_bytes())?;
+        writer::write(file, &format!("pub trait {} : IceObject {{\n", self.class_name()), 0)?;
         for function in &self.functions {
             function.write_decl(file)?;  
         }
-        file.write_all("}\n\n".as_bytes())?;
+        writer::write(file, "}\n\n", 0)?;
 
-        file.write_all(format!("pub struct {}Prx {{\n", self.class_name()).as_bytes())?;
-        file.write_all("    proxy: Proxy\n".as_bytes())?;
-        file.write_all("}\n\n".as_bytes())?;
+        writer::write(file, &format!("pub struct {}Prx {{\n", self.class_name()), 0)?;
+        writer::write(file, "proxy: Proxy\n}\n\n", 1)?;
+        
+        writer::write(file, &format!("impl IceObject for {}Prx {{\n", self.class_name()), 0)?;
+        writer::write(file, &format!("const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name), 1)?;
+        writer::write(file, &format!("const NAME: &'static str = \"{}\";\n\n", context), 1)?;
+        writer::write(file, "fn dispatch(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Error> {\n", 1)?;
+        writer::write(file, &format!("let req = self.proxy.create_request(&{}Prx::NAME, op, mode, params);\n", self.class_name()), 2)?;
+        writer::write(file, "self.proxy.make_request(&req)\n", 2)?;
+        writer::write(file, "}\n}\n\n", 1)?;
 
-        file.write_all(format!("impl IceObject for {}Prx {{\n", self.class_name()).as_bytes())?;
-        file.write_all(format!("    const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name).as_bytes())?;
-        file.write_all(format!("    const NAME: &'static str = \"{}\";\n\n", context).as_bytes())?;
-        file.write_all(format!("    fn dispatch(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Error> {{\n").as_bytes())?;
-        file.write_all(format!("        let req = self.proxy.create_request(&{}Prx::NAME, op, mode, params);\n", self.class_name()).as_bytes())?;
-        file.write_all(format!("        self.proxy.make_request(&req)\n").as_bytes())?;
-        file.write_all(format!("    }}\n\n").as_bytes())?;
-        file.write_all("}\n\n".as_bytes())?;
-
-        file.write_all(format!("impl {} for {}Prx {{\n", self.class_name(), self.class_name()).as_bytes())?;
+        writer::write(file, &format!("impl {} for {}Prx {{\n", self.class_name(), self.class_name()), 0)?;
         for function in &self.functions {
             function.write_impl(file)?;  
         }
-        file.write_all("}\n\n".as_bytes())?;
+        writer::write(file, "}\n\n", 0)?;
 
-        file.write_all(format!("impl {}Prx {{\n", self.class_name()).as_bytes())?;
-        file.write_all(format!("    pub fn checked_cast(proxy: Proxy) -> Result<DemoPrx, Error> {{\n").as_bytes())?;
-        file.write_all(format!("        let mut demo_proxy = DemoPrx {{\n").as_bytes())?;
-        file.write_all(format!("            proxy: proxy\n").as_bytes())?;
-        file.write_all(format!("        }};\n\n").as_bytes())?;
-        file.write_all(format!("        if !demo_proxy.ice_is_a()? {{\n").as_bytes())?;
-        file.write_all(format!("            return Err(Error::TcpError);\n").as_bytes())?;
-        file.write_all(format!("        }}\n\n").as_bytes())?;
-        file.write_all(format!("        Ok(demo_proxy)\n").as_bytes())?;
-        file.write_all("    }\n}\n\n".as_bytes())?;
-
-        Ok(())
+        writer::write(file, &format!("impl {}Prx {{\n", self.class_name()), 0)?;
+        writer::write(file, "pub fn checked_cast(proxy: Proxy) -> Result<Self, Error> {\n", 1)?;
+        writer::write(file, "let mut my_proxy = Self {\n", 2)?;
+        writer::write(file, "proxy: proxy\n", 3)?;
+        writer::write(file, "};\n\n", 2)?;
+        writer::write(file, "if !my_proxy.ice_is_a()? {\n", 2)?;
+        writer::write(file, "return Err(Error::TcpError);\n", 3)?;
+        writer::write(file, "}\n\n", 2)?;
+        writer::write(file, "Ok(my_proxy)\n", 2)?;
+        writer::write(file, "}\n}\n\n", 1)
     }
 }

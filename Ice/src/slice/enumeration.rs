@@ -1,7 +1,6 @@
 use crate::errors::Error;
 use crate::slice::writer;
 use std::fs::File;
-use std::io::prelude::*;
 use inflector::cases::classcase;
 
 
@@ -41,27 +40,27 @@ impl Enum {
     }
 
     pub fn write(&self, file: &mut File) -> Result<(), Error> {
-        file.write_all("#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]\n".as_bytes())?;
-        file.write_all("#[repr(i32)]\n".as_bytes())?;
-        file.write_all(format!("pub enum {} {{\n", self.class_name()).as_bytes())?;
-        
+        writer::write(file, "#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]\n", 0)?;
+        writer::write(file, "#[repr(i32)]\n", 0)?;
+        writer::write(file, &format!("pub enum {} {{\n", self.class_name()), 0)?;
+       
         for (variant, index) in &self.variants {
-            file.write_all(format!("    {} = {},\n", classcase::to_class_case(variant), index).as_bytes())?;
+            writer::write(file, &format!("{} = {},\n", classcase::to_class_case(variant), index), 1)?;
         }
-
-        file.write_all("}\n\n".as_bytes())?;
+        writer::write(file, "}\n\n", 0)?;
 
         writer::write_to_bytes(file, &self.class_name(), vec![String::from("bytes.extend(IceSize{size: *self as i32}.to_bytes()?);\n")])?;
 
-        file.write_all(format!("impl FromBytes for {} {{\n", self.class_name()).as_bytes())?;
-        file.write_all("    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {\n".as_bytes())?;
-        file.write_all("        let mut read = 0;\n".as_bytes())?;
-        file.write_all("        let enum_value =  IceSize::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?.size;\n".as_bytes())?;
-        file.write_all("        *read_bytes = *read_bytes + read;\n\n".as_bytes())?;
-        file.write_all(format!("        match {}::try_from(enum_value) {{\n", self.class_name()).as_bytes())?;
-        file.write_all("            Ok(enum_type) => Ok(enum_type),\n".as_bytes())?;
-        file.write_all("            _ => Err(Error::DecodingError)\n".as_bytes())?;
-        file.write_all("        }\n    }\n}\n\n".as_bytes())?;
+        writer::write(file, &format!("impl FromBytes for {} {{\n", self.class_name()), 0)?;
+        writer::write(file, "fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {\n", 1)?;
+        writer::write(file, "let mut read = 0;\n", 2)?;
+        writer::write(file, "let enum_value =  IceSize::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?.size;\n", 2)?;
+        writer::write(file, "*read_bytes = *read_bytes + read;\n\n", 2)?;
+        writer::write(file, &format!("match {}::try_from(enum_value) {{\n", self.class_name()), 2)?;
+        writer::write(file, "Ok(enum_type) => Ok(enum_type),\n", 3)?;
+        writer::write(file, "_ => Err(Error::DecodingError)\n", 3)?;
+        writer::write(file, "}\n", 2)?;
+        writer::write(file, "}\n}\n\n", 1)?;
 
         writer::write_encapsulation(file, &self.class_name())?;
 
