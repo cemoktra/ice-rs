@@ -1,7 +1,7 @@
 use crate::slice::types::IceType;
+use crate::slice::writer;
 use crate::errors::Error;
 use std::fs::File;
-use std::io::prelude::*;
 use inflector::cases::snakecase;
 
 
@@ -29,45 +29,44 @@ impl Function {
         self.arguments.push((String::from(name), var_type));
     }
 
-    pub fn write_decl(&self, file: &mut File) -> Result<(), Error> {
-        file.write_all(format!("    fn {}(&mut self", self.function_name()).as_bytes())?;
+    pub fn generate_decl(&self, file: &mut File) -> Result<(), Error> {
+        writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
         for (key, var_type) in &self.arguments {
-            file.write_all(format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()).as_bytes())?;
+            writer::write(file, &format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()), 0)?;
         }
-        file.write_all(format!(") -> Result<{}, Error>;\n", self.return_type.rust_type()).as_bytes())?;
-        Ok(())
+        writer::write(file, &format!(") -> Result<{}, Error>;\n", self.return_type.rust_type()), 1)
     }
 
-    pub fn write_impl(&self, file: &mut File) -> Result<(), Error> {
-        file.write_all(format!("    fn {}(&mut self", self.function_name()).as_bytes())?;
+    pub fn generate_impl(&self, file: &mut File) -> Result<(), Error> {
+        writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
         for (key, var_type) in &self.arguments {
-            file.write_all(format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()).as_bytes())?;
+            writer::write(file, &format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()), 0)?;
         }
-        file.write_all(format!(") -> Result<{}, Error> {{ \n", self.return_type.rust_type()).as_bytes())?;
+        writer::write(file, &format!(") -> Result<{}, Error> {{\n", self.return_type.rust_type()), 0)?;
 
         match self.return_type {
-            IceType::VoidType => file.write_all(format!("        self.dispatch(&String::from(\"{}\"), 0", self.name).as_bytes())?,
-            _ => file.write_all(format!("        let reply = self.dispatch(&String::from(\"{}\"), 0", self.name).as_bytes())?
+            IceType::VoidType => writer::write(file, &format!("self.dispatch(&String::from(\"{}\"), 0", self.name), 2)?,
+            _ => writer::write(file, &format!("let reply = self.dispatch(&String::from(\"{}\"), 0", self.name), 2)?
         }
 
         if self.arguments.len() > 0 {
             for (key, _) in &self.arguments {
-                file.write_all(format!(", &{}.as_encapsulation()?", key).as_bytes())?;
+                writer::write(file, &format!(", &{}.as_encapsulation()?", key), 0)?;
             }
-            file.write_all(format!(")?;\n").as_bytes())?;
+            writer::write(file, ")?;\n", 0)?;
         } else {
-            file.write_all(format!(", &Encapsulation::empty())?;\n").as_bytes())?;
+            writer::write(file, ", &Encapsulation::empty())?;\n", 0)?;
         }
+
         match self.return_type {
             IceType::VoidType => {
-                file.write_all(format!("        Ok(())\n").as_bytes())?;
+                writer::write(file, "Ok(())\n", 2)?;
             },
             _ => {
-                file.write_all(format!("        {}::from_encapsulation(reply.body)\n", self.return_type.rust_type()).as_bytes())?;
+                writer::write(file, &format!("{}::from_encapsulation(reply.body)\n", self.return_type.rust_type()), 2)?;
             }
         };
 
-        file.write_all(format!("    }}\n").as_bytes())?;
-        Ok(())
+        writer::write(file, "}\n", 1)
     }
 }

@@ -2,7 +2,6 @@ use crate::errors::Error;
 use crate::slice::types::IceType;
 use crate::slice::writer;
 use std::fs::File;
-use std::io::prelude::*;
 use inflector::cases::{classcase, snakecase};
 
 
@@ -28,16 +27,14 @@ impl Struct {
         classcase::to_class_case(&self.name)
     }
 
-    pub fn write(&self, file: &mut File) -> Result<(), Error> {
-        file.write_all("#[derive(Debug, Copy, Clone, PartialEq)]\n".as_bytes())?;
-        file.write_all(format!("pub struct {} {{\n", self.class_name()).as_bytes())?;
-        
+    pub fn generate(&self, file: &mut File) -> Result<(), Error> {
+        writer::write(file, "#[derive(Debug, Copy, Clone, PartialEq)]\n", 0)?;
+        writer::write(file, &format!("pub struct {} {{\n", self.class_name()), 0)?;
+
         for (type_name, var_type) in &self.members {
-            file.write_all(format!("    pub {}: {},\n", snakecase::to_snake_case(type_name), var_type.rust_type()).as_bytes())?;
+            writer::write(file, &format!("pub {}: {},\n", snakecase::to_snake_case(type_name), var_type.rust_type()), 1)?;
         }
-
-        file.write_all("}\n\n".as_bytes())?;
-
+        writer::write(file, "}\n\n", 0)?;
 
         let mut lines = Vec::new();
         for (key, _) in &self.members {

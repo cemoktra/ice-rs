@@ -57,5 +57,5 @@ fn main() -> Result<(), Error> {
 
     rust_demo.add_interface(&demo);
 
-    root.write(Path::new(&opts.out_dir), "demo")
+    root.generate(Path::new(&opts.out_dir), "demo")
 }

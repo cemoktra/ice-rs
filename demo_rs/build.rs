@@ -48,5 +48,5 @@ fn main() -> Result<(), Error> {
 
     let cd = std::env::current_dir()?;
     let gen_dir = &cd.join(Path::new("src/gen"));
-    root.write(gen_dir, "demo")
+    root.generate(gen_dir, "demo")
 }
