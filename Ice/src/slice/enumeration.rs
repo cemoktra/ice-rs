@@ -39,7 +39,7 @@ impl Enum {
         self.variants.push((String::from(name), value));
     }
 
-    pub fn write(&self, file: &mut File) -> Result<(), Error> {
+    pub fn generate(&self, file: &mut File) -> Result<(), Error> {
         writer::write(file, "#[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]\n", 0)?;
         writer::write(file, "#[repr(i32)]\n", 0)?;
         writer::write(file, &format!("pub enum {} {{\n", self.class_name()), 0)?;

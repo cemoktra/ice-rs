@@ -27,10 +27,10 @@ impl Interface {
         self.functions.push(function);
     }
 
-    pub fn write(&self, file: &mut File, mod_path: &str, context: &str) -> Result<(), Error> {
+    pub fn generate(&self, file: &mut File, mod_path: &str, context: &str) -> Result<(), Error> {
         writer::write(file, &format!("pub trait {} : IceObject {{\n", self.class_name()), 0)?;
         for function in &self.functions {
-            function.write_decl(file)?;  
+            function.generate_decl(file)?;  
         }
         writer::write(file, "}\n\n", 0)?;
 
@@ -47,7 +47,7 @@ impl Interface {
 
         writer::write(file, &format!("impl {} for {}Prx {{\n", self.class_name(), self.class_name()), 0)?;
         for function in &self.functions {
-            function.write_impl(file)?;  
+            function.generate_impl(file)?;  
         }
         writer::write(file, "}\n\n", 0)?;
 

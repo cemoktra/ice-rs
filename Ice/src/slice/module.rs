@@ -6,7 +6,7 @@ use crate::slice::writer;
 use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use inflector::cases::snakecase;
 
 
@@ -62,7 +62,7 @@ impl Module {
         self.interfaces.push(interface.clone());
     }
 
-    pub fn write(&self, dest: &Path, context: &str) -> Result<(), Error> {
+    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Error> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
         let mut file = File::create(mod_file)?;
@@ -70,7 +70,7 @@ impl Module {
         file.write_all("// This file has been generated.\n\n".as_bytes())?;
 
         // build up use statements
-        let mut uses: HashSet<String> = HashSet::new();
+        let mut uses: BTreeSet<String> = BTreeSet::new();
         if self.enumerations.len() > 0 || self.structs.len() > 0 || self.interfaces.len() > 0 {
             uses.insert(String::from("use ice_rs::errors::Error;\n"));
         }
@@ -100,24 +100,24 @@ impl Module {
         for sub_module in &self.sub_modules {
             let mod_name = sub_module.snake_name();
             writer::write(&mut file, &("pub mod ".to_owned() + &mod_name + ";\n"), 0)?;
-            sub_module.write(&dest.join(Path::new(&mod_name)), context)?;
+            sub_module.generate(&dest.join(Path::new(&mod_name)), context)?;
         }
         writer::write(&mut file, "\n", 0)?;
        
         for enumeration in &self.enumerations {
-            enumeration.write(&mut file)?;
+            enumeration.generate(&mut file)?;
         }
 
         file.write_all("\n".as_bytes())?;
 
         for struct_decl in &self.structs {
-            struct_decl.write(&mut file)?;
+            struct_decl.generate(&mut file)?;
         }
 
         file.write_all("\n".as_bytes())?;
 
         for interface in &self.interfaces {
-            interface.write(&mut file, &self.full_name, context)?;
+            interface.generate(&mut file, &self.full_name, context)?;
         }
 
         Ok(())

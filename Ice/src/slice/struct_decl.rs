@@ -27,7 +27,7 @@ impl Struct {
         classcase::to_class_case(&self.name)
     }
 
-    pub fn write(&self, file: &mut File) -> Result<(), Error> {
+    pub fn generate(&self, file: &mut File) -> Result<(), Error> {
         writer::write(file, "#[derive(Debug, Copy, Clone, PartialEq)]\n", 0)?;
         writer::write(file, &format!("pub struct {} {{\n", self.class_name()), 0)?;
 

@@ -29,7 +29,7 @@ impl Function {
         self.arguments.push((String::from(name), var_type));
     }
 
-    pub fn write_decl(&self, file: &mut File) -> Result<(), Error> {
+    pub fn generate_decl(&self, file: &mut File) -> Result<(), Error> {
         writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
         for (key, var_type) in &self.arguments {
             writer::write(file, &format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()), 0)?;
@@ -37,7 +37,7 @@ impl Function {
         writer::write(file, &format!(") -> Result<{}, Error>;\n", self.return_type.rust_type()), 1)
     }
 
-    pub fn write_impl(&self, file: &mut File) -> Result<(), Error> {
+    pub fn generate_impl(&self, file: &mut File) -> Result<(), Error> {
         writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
         for (key, var_type) in &self.arguments {
             writer::write(file, &format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()), 0)?;
