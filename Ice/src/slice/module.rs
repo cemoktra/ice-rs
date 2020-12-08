@@ -2,10 +2,11 @@ use crate::errors::Error;
 use crate::slice::enumeration::Enum;
 use crate::slice::struct_decl::Struct;
 use crate::slice::interface::Interface;
+use crate::slice::writer;
 use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use inflector::cases::snakecase;
 
 
@@ -61,7 +62,7 @@ impl Module {
         self.interfaces.push(interface.clone());
     }
 
-    pub fn write(&self, dest: &Path, context: &str) -> Result<(), Error> {
+    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Error> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
         let mut file = File::create(mod_file)?;
@@ -69,58 +70,54 @@ impl Module {
         file.write_all("// This file has been generated.\n\n".as_bytes())?;
 
         // build up use statements
-        let mut uses: HashSet<String> = HashSet::new();
+        let mut uses: BTreeSet<String> = BTreeSet::new();
         if self.enumerations.len() > 0 || self.structs.len() > 0 || self.interfaces.len() > 0 {
-            uses.insert(String::from("use ice_rs::errors::Error;"));
+            uses.insert(String::from("use ice_rs::errors::Error;\n"));
         }
         if self.enumerations.len() > 0 {
-            uses.insert(String::from("use num_enum::TryFromPrimitive;"));
-            uses.insert(String::from("use std::convert::TryFrom;"));
-            uses.insert(String::from("use ice_rs::encoding::IceSize;"));
-            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes, AsEncapsulation, FromEncapsulation\n};"));
+            uses.insert(String::from("use num_enum::TryFromPrimitive;\n"));
+            uses.insert(String::from("use std::convert::TryFrom;\n"));
+            uses.insert(String::from("use ice_rs::encoding::IceSize;\n"));
+            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes, AsEncapsulation, FromEncapsulation\n};\n"));
         }
         // TODO: use statements from structs from different modules
         if self.structs.len() > 0 {
-            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes, AsEncapsulation, FromEncapsulation\n};"));
+            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes, AsEncapsulation, FromEncapsulation\n};\n"));
         }
 
         if self.interfaces.len() > 0 {
-            uses.insert(String::from("use ice_rs::proxy::Proxy;"));
-            uses.insert(String::from("use ice_rs::iceobject::IceObject;"));
-            uses.insert(String::from("use ice_rs::protocol::{Encapsulation, ReplyData};"));
+            uses.insert(String::from("use ice_rs::proxy::Proxy;\n"));
+            uses.insert(String::from("use ice_rs::iceobject::IceObject;\n"));
+            uses.insert(String::from("use ice_rs::protocol::{Encapsulation, ReplyData};\n"));
         }
 
         // write use statements
         for use_statement in &uses {
-            file.write_all(format!("{}\n", use_statement).as_bytes())?;
+            writer::write(&mut file, use_statement, 0)?;
         }
 
 
         for sub_module in &self.sub_modules {
             let mod_name = sub_module.snake_name();
-            let mod_use = "pub mod ".to_owned() + &mod_name + ";\n";
-            file.write_all(mod_use.as_bytes())?;
-            sub_module.write(&dest.join(Path::new(&mod_name)), context)?;
+            writer::write(&mut file, &("pub mod ".to_owned() + &mod_name + ";\n"), 0)?;
+            sub_module.generate(&dest.join(Path::new(&mod_name)), context)?;
         }
-        file.write_all("\n".as_bytes())?;
-
-
-        
-
+        writer::write(&mut file, "\n", 0)?;
+       
         for enumeration in &self.enumerations {
-            enumeration.write(&mut file)?;
+            enumeration.generate(&mut file)?;
         }
 
         file.write_all("\n".as_bytes())?;
 
         for struct_decl in &self.structs {
-            struct_decl.write(&mut file)?;
+            struct_decl.generate(&mut file)?;
         }
 
         file.write_all("\n".as_bytes())?;
 
         for interface in &self.interfaces {
-            interface.write(&mut file, &self.full_name, context)?;
+            interface.generate(&mut file, &self.full_name, context)?;
         }
 
         Ok(())
