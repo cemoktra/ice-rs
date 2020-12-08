@@ -17,5 +17,5 @@ fn main() -> Result<(), Error> {
     let opts: Opts = Opts::parse();
     let slice_path = Path::new(&opts.slice_file);
     let root = parser::parse_ice_file(Path::new(&slice_path))?;
-    root.write(Path::new(&opts.out_dir), &slice_path.file_stem().ok_or(Error::ParsingError)?.to_str().ok_or(Error::ParsingError)?.to_lowercase())
+    root.generate(Path::new(&opts.out_dir), &slice_path.file_stem().ok_or(Error::ParsingError)?.to_str().ok_or(Error::ParsingError)?.to_lowercase())
 }
