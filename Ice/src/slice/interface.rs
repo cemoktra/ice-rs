@@ -5,7 +5,7 @@ use std::io::prelude::*;
 use inflector::cases::classcase;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Interface {
     name: String,
     functions: Vec<Function>

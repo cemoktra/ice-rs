@@ -3,10 +3,10 @@ use crate::slice::types::IceType;
 use crate::slice::writer;
 use std::fs::File;
 use std::io::prelude::*;
-use inflector::cases::{classcase, snakecase};
+use inflector::cases::{snakecase, pascalcase};
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Struct {
     name: String,
     members: Vec<(String, IceType)>
@@ -25,10 +25,11 @@ impl Struct {
     }
 
     pub fn class_name(&self) -> String {
-        classcase::to_class_case(&self.name)
+        pascalcase::to_pascal_case(&self.name)
     }
 
     pub fn write(&self, file: &mut File) -> Result<(), Error> {
+        println!("write struct {} {}", self.class_name(), self.name);
         file.write_all("#[derive(Debug, Copy, Clone, PartialEq)]\n".as_bytes())?;
         file.write_all(format!("pub struct {} {{\n", self.class_name()).as_bytes())?;
         

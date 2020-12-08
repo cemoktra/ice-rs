@@ -1,0 +1,29 @@
+WHITESPACE = _{ " " }
+COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+
+typename = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA)* }
+numeric_value = { ASCII_DIGIT+ }
+
+pragma = _{ "#" ~ (!NEWLINE ~ ANY)* }
+
+enum_line = { typename ~ ("=" ~ numeric_value)* ~ NEWLINE* }
+struct_line = { typename ~ typename ~ ";" }
+
+function_argument = { typename ~ typename }
+function_return = { typename }
+function_name = { typename }
+function = { function_return ~ function_name ~ "(" ~ function_argument* ~ ("," ~ function_argument)* ~ function_end ~ NEWLINE* }
+function_end = { ");" }
+
+enum_block = { "enum" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+struct_block = { "struct" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (struct_line ~ NEWLINE*)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+interface_block = { "interface" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (function ~ NEWLINE*)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+module_block = { "module" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (any_block)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+
+any_block = { module_block | enum_block | struct_block | interface_block }
+
+
+
+
+
+ice = { SOI ~ NEWLINE* ~ ((pragma | any_block) ~ NEWLINE*)* ~ EOI }

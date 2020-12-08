@@ -5,7 +5,7 @@ use std::io::prelude::*;
 use inflector::cases::classcase;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Enum {
     name: String,
     variants: Vec<(String, i32)>,

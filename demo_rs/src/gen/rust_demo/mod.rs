@@ -1,15 +1,15 @@
 // This file has been generated.
 
+use num_enum::TryFromPrimitive;
 use ice_rs::proxy::Proxy;
 use ice_rs::protocol::{Encapsulation, ReplyData};
-use num_enum::TryFromPrimitive;
-use std::convert::TryFrom;
+use ice_rs::encoding::IceSize;
+use ice_rs::errors::Error;
 use ice_rs::iceobject::IceObject;
 use ice_rs::encoding::{
    ToBytes, FromBytes, AsEncapsulation, FromEncapsulation
 };
-use ice_rs::encoding::IceSize;
-use ice_rs::errors::Error;
+use std::convert::TryFrom;
 
 #[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
 #[repr(i32)]
@@ -116,13 +116,13 @@ impl FromEncapsulation for Rect {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct RectProp {
+pub struct RectProps {
     pub width: i64,
     pub height: i64,
     pub rect_type: RectType,
 }
 
-impl ToBytes for RectProp {
+impl ToBytes for RectProps {
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut bytes = Vec::new();
         bytes.extend(self.width.to_bytes()?);
@@ -132,7 +132,7 @@ impl ToBytes for RectProp {
     }
 }
 
-impl FromBytes for RectProp {
+impl FromBytes for RectProps {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
         let mut read = 0;
         let obj = Self{
@@ -145,7 +145,7 @@ impl FromBytes for RectProp {
     }
 }
 
-impl AsEncapsulation for RectProp {
+impl AsEncapsulation for RectProps {
     fn as_encapsulation(&self) -> Result<Encapsulation, Error> {
         let bytes = self.to_bytes()?;
         Ok(Encapsulation {
@@ -157,7 +157,7 @@ impl AsEncapsulation for RectProp {
     }
 }
 
-impl FromEncapsulation for RectProp {
+impl FromEncapsulation for RectProps {
     type Output = Self;
 
     fn from_encapsulation(body: Encapsulation) -> Result<Self::Output, Error> {
@@ -170,7 +170,7 @@ impl FromEncapsulation for RectProp {
 pub trait Demo : IceObject {
     fn say_hello(&mut self) -> Result<(), Error>;
     fn say(&mut self, text: &String) -> Result<(), Error>;
-    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProp, Error>;
+    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProps, Error>;
 }
 
 pub struct DemoPrx {
@@ -197,9 +197,9 @@ impl Demo for DemoPrx {
         self.dispatch(&String::from("say"), 0, &text.as_encapsulation()?)?;
         Ok(())
     }
-    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProp, Error> { 
+    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProps, Error> { 
         let reply = self.dispatch(&String::from("calcRect"), 0, &rc.as_encapsulation()?)?;
-        RectProp::from_encapsulation(reply.body)
+        RectProps::from_encapsulation(reply.body)
     }
 }
 
