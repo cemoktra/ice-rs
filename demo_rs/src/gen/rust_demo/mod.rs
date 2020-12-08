@@ -1,15 +1,15 @@
 // This file has been generated.
 
-use ice_rs::proxy::Proxy;
 use ice_rs::encoding::IceSize;
-use std::convert::TryFrom;
-use ice_rs::iceobject::IceObject;
-use ice_rs::protocol::{Encapsulation, ReplyData};
-use ice_rs::errors::Error;
-use num_enum::TryFromPrimitive;
 use ice_rs::encoding::{
    ToBytes, FromBytes, AsEncapsulation, FromEncapsulation
 };
+use ice_rs::errors::Error;
+use ice_rs::iceobject::IceObject;
+use ice_rs::protocol::{Encapsulation, ReplyData};
+use ice_rs::proxy::Proxy;
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 
 #[derive(Debug, Copy, Clone, TryFromPrimitive, PartialEq)]
 #[repr(i32)]
@@ -168,9 +168,9 @@ impl FromEncapsulation for RectProps {
 
 
 pub trait Demo : IceObject {
-    fn say_hello(&mut self) -> Result<(), Error>;
-    fn say(&mut self, text: &String) -> Result<(), Error>;
-    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProps, Error>;
+    fn say_hello(&mut self    ) -> Result<(), Error>;
+    fn say(&mut self, text: &String    ) -> Result<(), Error>;
+    fn calc_rect(&mut self, rc: &Rect    ) -> Result<RectProps, Error>;
 }
 
 pub struct DemoPrx {
@@ -185,35 +185,34 @@ impl IceObject for DemoPrx {
         let req = self.proxy.create_request(&DemoPrx::NAME, op, mode, params);
         self.proxy.make_request(&req)
     }
-
 }
 
 impl Demo for DemoPrx {
-    fn say_hello(&mut self) -> Result<(), Error> { 
+    fn say_hello(&mut self) -> Result<(), Error> {
         self.dispatch(&String::from("sayHello"), 0, &Encapsulation::empty())?;
         Ok(())
     }
-    fn say(&mut self, text: &String) -> Result<(), Error> { 
+    fn say(&mut self, text: &String) -> Result<(), Error> {
         self.dispatch(&String::from("say"), 0, &text.as_encapsulation()?)?;
         Ok(())
     }
-    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProps, Error> { 
+    fn calc_rect(&mut self, rc: &Rect) -> Result<RectProps, Error> {
         let reply = self.dispatch(&String::from("calcRect"), 0, &rc.as_encapsulation()?)?;
         RectProps::from_encapsulation(reply.body)
     }
 }
 
 impl DemoPrx {
-    pub fn checked_cast(proxy: Proxy) -> Result<DemoPrx, Error> {
-        let mut demo_proxy = DemoPrx {
+    pub fn checked_cast(proxy: Proxy) -> Result<Self, Error> {
+        let mut my_proxy = Self {
             proxy: proxy
         };
 
-        if !demo_proxy.ice_is_a()? {
+        if !my_proxy.ice_is_a()? {
             return Err(Error::TcpError);
         }
 
-        Ok(demo_proxy)
+        Ok(my_proxy)
     }
 }
 

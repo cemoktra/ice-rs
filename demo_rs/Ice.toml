@@ -1,0 +1,3 @@
+[slice]
+input = "../Demo.ice"
+outdir = "./src/gen"
