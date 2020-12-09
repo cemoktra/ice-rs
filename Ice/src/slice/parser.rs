@@ -29,23 +29,23 @@ impl std::convert::From<std::num::ParseIntError> for Error {
     }
 }
 
-fn parse_typename(pair: Pair<Rule>) -> Result<String, Error> {
-    let typename = pair.into_inner().next().ok_or(Error::ParsingError)?;
-    Ok(typename.as_str().to_string())
+fn parse_identifier(pair: Pair<Rule>) -> Result<String, Error> {
+    let identifier = pair.into_inner().next().ok_or(Error::ParsingError)?;
+    Ok(identifier.as_str().to_string())
 }
 
 fn parse_function_argument(pair: Pair<Rule>) -> Result<(IceType, String), Error> {
-    let mut typename = None;
+    let mut identifier = None;
 
     for child in pair.into_inner() {
         match child.as_rule() {
-            Rule::typename => {
-                match typename {
-                    Some(typename) => {
-                        return Ok((IceType::from(typename)?, child.as_str().to_string()));
+            Rule::identifier => {
+                match identifier {
+                    Some(identifier) => {
+                        return Ok((IceType::from(identifier)?, child.as_str().to_string()));
                     },
                     _ => {
-                        typename = Some(child.as_str());
+                        identifier = Some(child.as_str());
                     }
                 }
             },
@@ -62,8 +62,8 @@ fn parse_function(pair: Pair<Rule>, interface: &mut Interface) -> Result<(), Err
 
     for child in pair.into_inner() {
         match child.as_rule() {
-            Rule::function_return => { fn_return = IceType::from(&parse_typename(child)?)?; },
-            Rule::function_name => { fn_name = parse_typename(child)?; },
+            Rule::function_return => { fn_return = IceType::from(&parse_identifier(child)?)?; },
+            Rule::function_name => { fn_name = parse_identifier(child)?; },
             Rule::function_argument => {
                 fn_args.push(parse_function_argument(child)?);
             },
@@ -82,17 +82,17 @@ fn parse_function(pair: Pair<Rule>, interface: &mut Interface) -> Result<(), Err
 }
 
 fn parse_struct_line(pair: Pair<Rule>, structure: &mut Struct) -> Result<(), Error> {
-    let mut typename = None;
+    let mut identifier = None;
 
     for child in pair.into_inner() {
         match child.as_rule() {
-            Rule::typename => {
-                match typename {
-                    Some(typename) => {
-                        structure.add_member(child.as_str(), IceType::from(typename)?);
+            Rule::identifier => {
+                match identifier {
+                    Some(identifier) => {
+                        structure.add_member(child.as_str(), IceType::from(identifier)?);
                     },
                     _ => {
-                        typename = Some(child.as_str());
+                        identifier = Some(child.as_str());
                     }
                 }
             },
@@ -106,7 +106,7 @@ fn parse_enum_line(pair: Pair<Rule>, enumeration: &mut Enum) -> Result<(), Error
     let mut last_type = None;
     for child in pair.into_inner() {
         match child.as_rule() {
-            Rule::typename => {
+            Rule::identifier => {
                 match last_type {
                     Some(last) => {
                         enumeration.add_variant(last, None);
@@ -134,12 +134,12 @@ fn parse_enum_line(pair: Pair<Rule>, enumeration: &mut Enum) -> Result<(), Error
 
 fn parse_interface(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
     let mut inner = pair.into_inner();
-    let typename = inner.next().unwrap();
-    if typename.as_rule() != Rule::typename {
+    let identifier = inner.next().unwrap();
+    if identifier.as_rule() != Rule::identifier {
         return Err(Error::ParsingError);
     }
 
-    let mut interface = Interface::new(typename.as_str());
+    let mut interface = Interface::new(identifier.as_str());
     for child in inner {
         parse_function(child, &mut interface)?;
     }
@@ -149,12 +149,12 @@ fn parse_interface(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), E
 
 fn parse_struct(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
     let mut inner = pair.into_inner();
-    let typename = inner.next().unwrap();
-    if typename.as_rule() != Rule::typename {
+    let identifier = inner.next().unwrap();
+    if identifier.as_rule() != Rule::identifier {
         return Err(Error::ParsingError);
     }
 
-    let mut structure = Struct::new(typename.as_str());
+    let mut structure = Struct::new(identifier.as_str());
     for child in inner {
         parse_struct_line(child, &mut structure)?;
     }
@@ -165,12 +165,12 @@ fn parse_struct(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Erro
 
 fn parse_enum(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
     let mut inner = pair.into_inner();
-    let typename = inner.next().unwrap();
-    if typename.as_rule() != Rule::typename {
+    let identifier = inner.next().unwrap();
+    if identifier.as_rule() != Rule::identifier {
         return Err(Error::ParsingError);
     }
 
-    let mut enumeration = Enum::new(typename.as_str());
+    let mut enumeration = Enum::new(identifier.as_str());
     for child in inner {
         parse_enum_line(child, &mut enumeration)?;
     }
@@ -180,12 +180,12 @@ fn parse_enum(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error>
 
 fn parse_module(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
     let mut inner = pair.into_inner();
-    let typename = inner.next().unwrap();
-    if typename.as_rule() != Rule::typename {
+    let identifier = inner.next().unwrap();
+    if identifier.as_rule() != Rule::identifier {
         return Err(Error::ParsingError);
     }
 
-    let sub_module = parent_module.add_sub_module(typename.as_str())?;
+    let sub_module = parent_module.add_sub_module(identifier.as_str())?;
 
     for child in inner {
         parse_ice(child, sub_module)?;
@@ -226,4 +226,71 @@ pub fn parse_ice_file(ice_file: &Path) -> Result<Module, Error> {
     parse_ice(slice, &mut root)?;
 
     Ok(root)
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_module_block() {
+        assert!(IceParser::parse(Rule::module_block, "module Test { }").is_ok());
+        assert!(IceParser::parse(Rule::module_block, "module Test { module Test2 {} }").is_ok());
+        assert!(IceParser::parse(Rule::module_block, "module Test { enum Test2 { First } }").is_ok());
+        assert!(IceParser::parse(Rule::module_block, "module Test { struct Test2 { long width; } }").is_ok());
+        assert!(IceParser::parse(Rule::module_block, "module Test { interface Test2 { void test(); } }").is_ok());
+
+        assert!(IceParser::parse(Rule::module_block, "struct Test {}").is_err());
+        assert!(IceParser::parse(Rule::module_block, "interface Test {}").is_err());
+        assert!(IceParser::parse(Rule::module_block, "enum Test {}").is_err());
+        assert!(IceParser::parse(Rule::module_block, "module 12Test {}").is_err());
+    }
+
+    #[test]
+    fn test_enum_block() {
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { First = 0 }").is_ok());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { First }").is_ok());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { First = 0, Second = 1 }").is_ok());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { First, Second }").is_ok());
+
+        assert!(IceParser::parse(Rule::enum_block, "struct Test {}").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "interface Test {}").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "module Test {}").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "enum 12Test {}").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test {}").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { 123abc }").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { 123abc = 1 }").is_err());
+        assert!(IceParser::parse(Rule::enum_block, "enum Test { First = X }").is_err());
+    }
+
+    #[test]
+    fn test_struct_block() {
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { long width; }").is_ok());
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { long width; long height; }").is_ok());
+
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { long width }").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { }").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "enum Test {}").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "inteface Test {}").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "module Test {}").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "struct 12Test {}").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { 12long width; }").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { long 12width; }").is_err());
+        assert!(IceParser::parse(Rule::struct_block, "struct Test { struct Test2 { } }").is_err());
+    }
+
+    #[test]
+    fn test_interface_block() {
+        assert!(IceParser::parse(Rule::interface_block, "interface Test { void test(); }").is_ok());
+        assert!(IceParser::parse(Rule::interface_block, "interface Test { void test(long width); }").is_ok());
+        assert!(IceParser::parse(Rule::interface_block, "interface Test { void test(long width, long height); }").is_ok());
+
+        assert!(IceParser::parse(Rule::interface_block, "interface Test { void 12test(); }").is_err());
+        assert!(IceParser::parse(Rule::interface_block, "interface Test { test(); }").is_err());
+        assert!(IceParser::parse(Rule::interface_block, "interface Test { void test(long 12width); }").is_err());
+        assert!(IceParser::parse(Rule::interface_block, "enum Test {}").is_err());
+        assert!(IceParser::parse(Rule::interface_block, "struct Test {}").is_err());
+        assert!(IceParser::parse(Rule::interface_block, "module Test {}").is_err());
+    }
 }

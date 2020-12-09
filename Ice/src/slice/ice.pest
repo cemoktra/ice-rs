@@ -1,24 +1,25 @@
 WHITESPACE = _{ " " }
-COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+COMMENT = _{ ("//" ~ (!NEWLINE ~ ANY)*) | ( "/*" ~ ("!*/" ~ ANY)*) }
 
-typename = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA)* }
-numeric_value = { ASCII_DIGIT+ }
+identifier = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
+
+numeric_value = { (!NEWLINE ~ !ASCII_ALPHA ~ ASCII_DIGIT)+ }
 
 pragma = _{ "#" ~ (!NEWLINE ~ ANY)* }
 
-enum_line = { typename ~ ("=" ~ numeric_value)* ~ NEWLINE* }
-struct_line = { typename ~ typename ~ ";" }
+enum_line = { identifier ~ ("=" ~ numeric_value)* ~ NEWLINE* }
+struct_line = { identifier ~ identifier ~ ";" }
 
-function_argument = { typename ~ typename }
-function_return = { typename }
-function_name = { typename }
+function_argument = { identifier ~ identifier }
+function_return = { identifier }
+function_name = { identifier }
 function = { function_return ~ function_name ~ "(" ~ function_argument* ~ ("," ~ function_argument)* ~ function_end ~ NEWLINE* }
 function_end = { ");" }
 
-enum_block = { "enum" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
-struct_block = { "struct" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (struct_line ~ NEWLINE*)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
-interface_block = { "interface" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (function ~ NEWLINE*)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
-module_block = { "module" ~ typename ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (any_block)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+enum_block = { "enum" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+struct_block = { "struct" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (struct_line ~ NEWLINE*)+ ~ NEWLINE* ~ "}" ~ NEWLINE* }
+interface_block = { "interface" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (function ~ NEWLINE*)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+module_block = { "module" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (any_block)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
 
 any_block = { module_block | enum_block | struct_block | interface_block }
 
