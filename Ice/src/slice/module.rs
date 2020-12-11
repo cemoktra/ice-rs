@@ -9,6 +9,8 @@ use std::io::prelude::*;
 use std::collections::BTreeSet;
 use inflector::cases::snakecase;
 
+use super::types::IceType;
+
 
 pub struct Module {
     pub name: String,
@@ -17,6 +19,7 @@ pub struct Module {
     enumerations: Vec<Enum>,
     structs: Vec<Struct>,
     interfaces: Vec<Interface>,
+    typedefs: Vec<(String, IceType)>,
 }
 
 impl Module {
@@ -27,8 +30,19 @@ impl Module {
             sub_modules: vec![],
             enumerations: vec![],
             structs: vec![],
-            interfaces: vec![]
+            interfaces: vec![],
+            typedefs: vec![]
         }
+    }
+
+    pub fn has_dict(&self) -> bool {
+        for (_, var) in &self.typedefs {
+            match var {
+                IceType::DictType(_, _) => return true,
+                _ => {}
+            }
+        }
+        false
     }
 
     pub fn snake_name(&self) -> String {
@@ -49,7 +63,8 @@ impl Module {
             sub_modules: vec![],
             enumerations: vec![],
             structs: vec![],
-            interfaces: vec![]
+            interfaces: vec![],
+            typedefs: vec![]
         });
         self.sub_modules.last_mut().ok_or(Error::Unexpected)
     }
@@ -66,6 +81,10 @@ impl Module {
         self.interfaces.push(interface);
     }
 
+    pub fn add_typedef(&mut self, id: &str, vartype: IceType) {
+        self.typedefs.push((String::from(id), vartype.clone()));
+    }
+    
     pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Error> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
@@ -75,6 +94,11 @@ impl Module {
 
         // build up use statements
         let mut uses: BTreeSet<String> = BTreeSet::new();
+        
+        if self.has_dict() {
+            uses.insert(String::from("use std::collections::HashMap;\n"));
+        }
+
         if self.enumerations.len() > 0 || self.structs.len() > 0 || self.interfaces.len() > 0 {
             uses.insert(String::from("use ice_rs::errors::Error;\n"));
         }
@@ -82,11 +106,11 @@ impl Module {
             uses.insert(String::from("use num_enum::TryFromPrimitive;\n"));
             uses.insert(String::from("use std::convert::TryFrom;\n"));
             uses.insert(String::from("use ice_rs::encoding::IceSize;\n"));
-            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes, AsEncapsulation, FromEncapsulation\n};\n"));
+            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes\n};\n"));
         }
         // TODO: use statements from structs from different modules
         if self.structs.len() > 0 {
-            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes, AsEncapsulation, FromEncapsulation\n};\n"));
+            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes\n};\n"));
         }
 
         if self.interfaces.len() > 0 {
@@ -105,6 +129,11 @@ impl Module {
             let mod_name = sub_module.snake_name();
             writer::write(&mut file, &("pub mod ".to_owned() + &mod_name + ";\n"), 0)?;
             sub_module.generate(&dest.join(Path::new(&mod_name)), context)?;
+        }
+        writer::write(&mut file, "\n", 0)?;
+
+        for (id, vartype) in &self.typedefs {
+            writer::write(&mut file, &format!("type {} = {};\n", id, vartype.rust_type()), 0)?;
         }
         writer::write(&mut file, "\n", 0)?;
        

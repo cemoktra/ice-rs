@@ -55,8 +55,6 @@ impl Struct {
         }
         writer::write_from_bytes(file, &self.class_name(), lines)?;
 
-        writer::write_encapsulation(file, &self.class_name())?;
-
         Ok(())
     }
 }

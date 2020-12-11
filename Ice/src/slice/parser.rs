@@ -56,6 +56,20 @@ impl ParsedObject for Module {
                         }
                     }
                 },
+                Rule::typedef => {
+                    let mut vartype = IceType::VoidType;
+                    let mut id = "";
+                    for item in child.into_inner() {
+                        match item.as_rule() {
+                            Rule::typename => { vartype = IceType::from(item.as_str())? },
+                            Rule::identifier => { id = item.as_str(); },
+                            Rule::typedef_end => {
+                                module.add_typedef(id, vartype.clone());
+                            },
+                            _ => return Err(Error::ParsingError)
+                        }
+                    }
+                }
                 Rule::block_close => {},
                 _ => return Err(Error::ParsingError)
             };
@@ -114,15 +128,14 @@ impl ParsedObject for Struct {
                 Rule::identifier => { structure.name = String::from(child.as_str()); },
                 Rule::block_open => {},
                 Rule::struct_line => {
-                    let mut identifiers = Vec::new();
+                    let mut typename = IceType::VoidType;
+                    let mut id = "";
                     for line in child.into_inner() {
                         match line.as_rule() {
-                            Rule::identifier => { identifiers.push(line.as_str()); },
+                            Rule::typename => { typename = IceType::from(line.as_str())? },
+                            Rule::identifier => { id = line.as_str(); },
                             Rule::struct_line_end => {
-                                if identifiers.len() != 2 {
-                                    return Err(Error::ParsingError);
-                                }
-                                structure.add_member(identifiers[1], IceType::from(identifiers[0])?);
+                                structure.add_member(id, typename.clone());
                             },
                             _ => return Err(Error::ParsingError)
                         }
@@ -169,15 +182,17 @@ impl ParsedObject for Function {
                         match arg.as_rule() {
                             Rule::fn_arg | Rule::fn_arg_out => {
                                 let mut out = false;
-                                let mut identifiers = Vec::new(); 
+                                let mut typename = IceType::VoidType;
+                                let mut id = "";
                                 for item in arg.into_inner() {                                    
                                     match item.as_rule() {
-                                        Rule::identifier => { identifiers.push(item.as_str()); },
+                                        Rule::typename => { typename = IceType::from(item.as_str())? },
+                                        Rule::identifier => { id = item.as_str(); },
                                         Rule::keyword_out => { out = true; },
                                         _ => return Err(Error::ParsingError)
                                     }
                                 }
-                                function.add_argument(identifiers[1], IceType::from(identifiers[0])?, out);
+                                function.add_argument(id, typename.clone(), out);
                             }
                             _ => return Err(Error::ParsingError)
                         }
@@ -198,7 +213,7 @@ impl Module {
         let mut content = String::new();
         file.read_to_string(&mut content)?;
 
-        let pairs = IceParser::parse(Rule::ice, &content)?;
+        let pairs = IceParser::parse(Rule::ice, &content).unwrap();
         for pair in pairs {
             match pair.as_rule() {
                 Rule::ice => {
@@ -268,7 +283,6 @@ mod test {
 
     #[test]
     fn test_module_block() {
-        println!("{:?}", IceParser::parse(Rule::ice, "#pragma once\nmodule Test { }"));
         assert!(IceParser::parse(Rule::ice, "#pragma once\nmodule Test { }").is_ok());
 
         assert!(IceParser::parse(Rule::module_block, "module Test { }").is_ok());

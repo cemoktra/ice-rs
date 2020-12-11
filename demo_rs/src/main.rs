@@ -4,7 +4,7 @@ use ice_rs::iceobject::IceObject;
 
 mod gen;
 use crate::gen::rust_demo::{Demo,DemoPrx,Rect};
-
+use std::collections::HashMap;
 
 
 fn main() -> Result<(), Error> {
@@ -26,6 +26,22 @@ fn main() -> Result<(), Error> {
         bottom: 50
     };
     println!("calcRect({:?}): {:?}", rc, demo_prx.calc_rect(&rc));
+
+    println!("add: {:?}", demo_prx.add(3.0, 4.5));
+
+    let mut x = 4.0; 
+    println!("square: {:?}", demo_prx.square(x, &mut x));
+    println!("  x = {}", x);
+    println!("squareRoot: {:?}", demo_prx.square_root(x, &mut x));
+    println!("  x = {}", x);
+
+    let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0];
+    println!("sum: {:?}", demo_prx.sum(&y));
+
+    let mut z: HashMap<String, f64> = HashMap::new();
+    z.insert(String::from("hello"), 1.0);
+    z.insert(String::from("world"), 2.0);
+    println!("getHello: {:?}", demo_prx.get_hello(&z));
 
     Ok(())
 }

@@ -6,6 +6,7 @@ COMMENT = _{ ("//" ~ (!NEWLINE ~ ANY)*) | ( "/*" ~ ("!*/" ~ ANY)*) }
 pragma = _{ "#" ~ (!NEWLINE ~ ANY)* }
 
 identifier = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
+typename = { identifier ~ ("<" ~ identifier ~ ("," ~ identifier)* ~ ">")? }
 numeric_value = { (!NEWLINE ~ !ASCII_ALPHA ~ ASCII_DIGIT)+ }
 
 keyword_out = { "out" }
@@ -20,7 +21,7 @@ block_close = { "}" ~ NEWLINE* }
 
 any_block = { module_block | interface_block | enum_block | struct_block }
 
-module_block = { keyword_module ~ identifier ~ block_open ~ (any_block)* ~ block_close }
+module_block = { keyword_module ~ identifier ~ block_open ~ (any_block | typedef)* ~ block_close }
 interface_block = { keyword_interface ~ identifier ~ block_open ~ (function)* ~ block_close }
 enum_block = { keyword_enum ~ identifier ~ block_open ~ enum_lines ~ block_close }
 struct_block = { keyword_struct ~ identifier ~ block_open ~ struct_line+ ~ block_close }
@@ -28,8 +29,8 @@ struct_block = { keyword_struct ~ identifier ~ block_open ~ struct_line+ ~ block
 fn_return = { identifier }
 fn_name = { identifier }
 fn_arg_open = { "(" }
-fn_arg = { !keyword_out ~ identifier ~ identifier }
-fn_arg_out = { keyword_out ~ identifier ~ identifier }
+fn_arg = { !keyword_out ~ typename ~ identifier }
+fn_arg_out = { keyword_out ~ typename ~ identifier }
 fn_arg_list = { (fn_arg ~ ("," ~ fn_arg)*)? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*)? }
 fn_arg_close = { ")" }
 fn_throws = { throws_keyword ~ identifier }
@@ -41,4 +42,7 @@ enum_line = { identifier ~ ("=" ~ numeric_value)? }
 enum_lines = { enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* }
 
 struct_line_end = { ";" }
-struct_line = { identifier ~ identifier ~ struct_line_end ~ NEWLINE* }
+struct_line = { typename ~ identifier ~ struct_line_end ~ NEWLINE* }
+
+typedef_end = { ";" }
+typedef = { typename ~ identifier ~ typedef_end ~ NEWLINE* }

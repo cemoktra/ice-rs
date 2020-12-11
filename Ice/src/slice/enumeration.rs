@@ -70,8 +70,6 @@ impl Enum {
         writer::write(file, "}\n", 2)?;
         writer::write(file, "}\n}\n\n", 1)?;
 
-        writer::write_encapsulation(file, &self.class_name())?;
-
         Ok(())
     }
 }

@@ -5,6 +5,7 @@
 
 import signal
 import sys
+import math
 import Ice
 
 Ice.loadSlice('../Demo.ice')
@@ -24,6 +25,23 @@ class DemoI(RustDemo.Demo):
         props.height = rc.bottom - rc.top
         props.rectType = RustDemo.RectType.Square if props.width == props.height else RustDemo.RectType.Rect
         return props
+
+    def add(self, a, b, current):
+        return a + b
+        
+    def square(self, n, current):
+        return n * n
+
+    def squareRoot(self, n, current):
+        return n > 0, math.sqrt(n)
+
+    def sum(self, x, current):
+        return sum(x)
+
+    def getHello(self, x, current):
+        if 'hello' in x:
+            return x['hello']
+        return math.nan
 
 
 #

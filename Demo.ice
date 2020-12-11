@@ -1,7 +1,3 @@
-//
-// Copyright (c) ZeroC, Inc. All rights reserved.
-//
-
 #pragma once
 
 module RustDemo
@@ -24,10 +20,31 @@ module RustDemo
         RectType rectType;
     }
 
+    sequence<double> DoubleSeq;
+    dictionary<string, double> TestDict;
+
     interface Demo
     {
+        // test simple call
         void sayHello();
+
+        // test simple call with argument
         void say(string text);
+
+        // test custom arguments
         RectProps calcRect(Rect rc);
+
+        // test multiple args
+        double add(double x, double y);
+        
+        // test output arguments
+        void square(double x, out double y);
+        bool squareRoot(double x, out double y);
+
+        // test sequence
+        double sum(DoubleSeq x);
+
+        // test dict
+        double getHello(TestDict x);
     }
 }

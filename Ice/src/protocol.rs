@@ -80,4 +80,13 @@ impl Encapsulation {
             data: vec![]
         }
     }
+
+    pub fn from(bytes: Vec<u8>) -> Encapsulation {
+        Encapsulation {
+            size: 6 + bytes.len() as i32,
+            major: 1,
+            minor: 1,
+            data: bytes
+        }
+    }
 }
