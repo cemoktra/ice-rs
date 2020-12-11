@@ -6,12 +6,20 @@ use inflector::cases::classcase;
 
 #[derive(Clone, Debug)]
 pub struct Enum {
-    name: String,
+    pub name: String,
     variants: Vec<(String, i32)>,
     next_value: i32
 }
 
 impl Enum {
+    pub fn empty() -> Enum {
+        Enum {
+            name: String::from(""),
+            variants: vec![],
+            next_value: 0
+        }
+    }
+
     pub fn new(name: &str) -> Enum {
         Enum {
             name: String::from(name),

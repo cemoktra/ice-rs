@@ -7,11 +7,18 @@ use inflector::cases::classcase;
 
 #[derive(Clone, Debug)]
 pub struct Interface {
-    name: String,
+    pub name: String,
     functions: Vec<Function>
 }
 
 impl Interface {
+    pub fn empty() -> Interface {
+        Interface {
+            name: String::from(""),
+            functions: Vec::new()
+        }
+    }
+
     pub fn new(name: &str) -> Interface {
         Interface {
             name: String::from(name),

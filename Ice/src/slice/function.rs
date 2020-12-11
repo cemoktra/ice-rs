@@ -7,12 +7,20 @@ use inflector::cases::snakecase;
 
 #[derive(Clone, Debug)]
 pub struct Function {
-    name: String,
-    return_type: IceType,
-    arguments: Vec<(String, IceType)>
+    pub name: String,
+    pub return_type: IceType,
+    arguments: Vec<(String, IceType, bool)>
 }
 
 impl Function {
+    pub fn empty() -> Function {
+        Function {
+            name: String::new(),
+            return_type: IceType::VoidType,
+            arguments: Vec::new()
+        }
+    }
+
     pub fn new(name: &str, return_type: IceType) -> Function {
         Function {
             name: String::from(name),
@@ -25,13 +33,13 @@ impl Function {
         snakecase::to_snake_case(&self.name)
     }
 
-    pub fn add_argument(&mut self, name: &str, var_type: IceType) {
-        self.arguments.push((String::from(name), var_type));
+    pub fn add_argument(&mut self, name: &str, var_type: IceType, output: bool) {
+        self.arguments.push((String::from(name), var_type, output));
     }
 
     pub fn generate_decl(&self, file: &mut File) -> Result<(), Error> {
         writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
-        for (key, var_type) in &self.arguments {
+        for (key, var_type, _) in &self.arguments {
             writer::write(file, &format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()), 0)?;
         }
         writer::write(file, &format!(") -> Result<{}, Error>;\n", self.return_type.rust_type()), 1)
@@ -39,7 +47,7 @@ impl Function {
 
     pub fn generate_impl(&self, file: &mut File) -> Result<(), Error> {
         writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
-        for (key, var_type) in &self.arguments {
+        for (key, var_type, _) in &self.arguments {
             writer::write(file, &format!(", {}: &{}", snakecase::to_snake_case(key), var_type.rust_type()), 0)?;
         }
         writer::write(file, &format!(") -> Result<{}, Error> {{\n", self.return_type.rust_type()), 0)?;
@@ -50,7 +58,7 @@ impl Function {
         }
 
         if self.arguments.len() > 0 {
-            for (key, _) in &self.arguments {
+            for (key, _, _) in &self.arguments {
                 writer::write(file, &format!(", &{}.as_encapsulation()?", key), 0)?;
             }
             writer::write(file, ")?;\n", 0)?;

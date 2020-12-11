@@ -3,7 +3,7 @@ use std::path::Path;
 use std::fs::File;
 use std::io::prelude::*;
 use pest::Parser;
-use pest::iterators::Pair;
+use pest::iterators::Pairs;
 use crate::errors::Error;
 use crate::slice::module::Module;
 use crate::slice::enumeration::Enum;
@@ -17,6 +17,212 @@ use crate::slice::types::IceType;
 #[grammar = "slice/ice.pest"]
 pub struct IceParser;
 
+pub trait ParsedObject {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized;
+}
+
+impl ParsedObject for Module {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+        let mut module = Module::new();
+        for child in rule {
+            match child.as_rule() {
+                Rule::keyword_module => {},
+                Rule::identifier => { 
+                    module.name = String::from(child.as_str());
+                    module.full_name = format!("::{}", module.name);
+                },
+                Rule::block_open => {},
+                Rule::any_block => {
+                    for block in child.into_inner() {
+                        match block.as_rule() {
+                            Rule::module_block => {
+                                let mut sub_module = Module::parse(block.into_inner())?;
+                                sub_module.full_name = format!("{}::{}", module.full_name, sub_module.name);
+                                module.add_module(sub_module);
+                            },
+                            Rule::enum_block => {
+                                let enumeration = Enum::parse(block.into_inner())?;
+                                module.add_enum(enumeration);
+                            },
+                            Rule::struct_block => {
+                                let structure = Struct::parse(block.into_inner())?;
+                                module.add_struct(structure);
+                            },
+                            Rule::interface_block => {
+                                let interface = Interface::parse(block.into_inner())?;
+                                module.add_interface(interface);
+                            },
+                            _ => return Err(Error::ParsingError)
+                        }
+                    }
+                },
+                Rule::block_close => {},
+                _ => return Err(Error::ParsingError)
+            };
+        }
+        Ok(module)
+    }
+}
+
+impl ParsedObject for Enum {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+        let mut enumeration = Enum::empty();
+        for child in rule {
+            match child.as_rule() {
+                Rule::keyword_enum => {},
+                Rule::identifier => { enumeration.name = String::from(child.as_str()); },
+                Rule::block_open => {},
+                Rule::enum_lines => {
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            // TODO: maybe add struct for each enum line
+                            Rule::enum_line => {
+                                let mut id = "";
+                                let mut value: Option<i32> = None;
+                                for item in line.into_inner() {
+                                    match item.as_rule() {
+                                        Rule::identifier => {
+                                            id = item.as_str();
+                                        },
+                                        Rule::numeric_value => {
+                                            value = Some(item.as_str().parse()?);
+                                        },
+                                        _ => return Err(Error::ParsingError)
+                                    };
+                                }
+                                enumeration.add_variant(id, value);
+                            },
+                            _ => return Err(Error::ParsingError)
+                        }
+                    }
+                },
+                Rule::block_close => {},
+                _ => return Err(Error::ParsingError)
+            }
+        }
+
+        Ok(enumeration)
+    }
+}
+
+impl ParsedObject for Struct {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+        let mut structure = Struct::empty();
+        for child in rule {            
+            match child.as_rule() {
+                Rule::keyword_struct => {},
+                Rule::identifier => { structure.name = String::from(child.as_str()); },
+                Rule::block_open => {},
+                Rule::struct_line => {
+                    let mut identifiers = Vec::new();
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            Rule::identifier => { identifiers.push(line.as_str()); },
+                            Rule::struct_line_end => {
+                                if identifiers.len() != 2 {
+                                    return Err(Error::ParsingError);
+                                }
+                                structure.add_member(identifiers[1], IceType::from(identifiers[0])?);
+                            },
+                            _ => return Err(Error::ParsingError)
+                        }
+                    }
+                },
+                Rule::block_close => {},
+                _ => return Err(Error::ParsingError)
+            }
+        }
+
+        Ok(structure)
+    }
+}
+
+impl ParsedObject for Interface {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+        let mut interface = Interface::empty();
+        for child in rule {
+            match child.as_rule() {
+                Rule::keyword_interface => {},
+                Rule::identifier => { interface.name = String::from(child.as_str()); },
+                Rule::block_open => {},
+                Rule::function => {
+                    interface.add_function(Function::parse(child.into_inner())?);
+                },
+                Rule::block_close => {},
+                _ => return Err(Error::ParsingError)
+            }
+        }
+        Ok(interface)
+    }
+}
+
+impl ParsedObject for Function {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+        let mut function = Function::empty();
+        for child in rule {
+            match child.as_rule() {
+                Rule::fn_return => { function.return_type = IceType::from(child.as_str())?; },
+                Rule::fn_name => { function.name = String::from(child.as_str()); },
+                Rule::fn_arg_open => {},
+                Rule::fn_arg_list => {
+                    for arg in child.into_inner() {
+                        match arg.as_rule() {
+                            Rule::fn_arg | Rule::fn_arg_out => {
+                                let mut out = false;
+                                let mut identifiers = Vec::new(); 
+                                for item in arg.into_inner() {                                    
+                                    match item.as_rule() {
+                                        Rule::identifier => { identifiers.push(item.as_str()); },
+                                        Rule::keyword_out => { out = true; },
+                                        _ => return Err(Error::ParsingError)
+                                    }
+                                }
+                                function.add_argument(identifiers[1], IceType::from(identifiers[0])?, out);
+                            }
+                            _ => return Err(Error::ParsingError)
+                        }
+                    }
+                },
+                Rule::fn_arg_close => {},
+                Rule::fn_throws => {}
+                _ => return Err(Error::ParsingError)
+            }
+        }
+        Ok(function)
+    }
+}
+
+impl Module {
+    fn parse_file(file: &mut File) -> Result<Module, Error> {
+        let mut root = Module::new();
+        let mut content = String::new();
+        file.read_to_string(&mut content)?;
+
+        let pairs = IceParser::parse(Rule::ice, &content)?;
+        for pair in pairs {
+            match pair.as_rule() {
+                Rule::ice => {
+                    for child in pair.into_inner() {
+                        match child.as_rule() {
+                            Rule::module_block => {
+                                let module = Module::parse(child.into_inner())?;
+                                root.add_module(module);
+                            },
+                            Rule::EOI => {
+                                return Ok(root)
+                            },
+                            _ => return Err(Error::ParsingError)
+                        }
+                    }
+                },
+                _ => return Err(Error::ParsingError)
+            };
+        }
+
+        Err(Error::ParsingError)
+    }
+}
+
 impl<T> std::convert::From<pest::error::Error<T>> for Error {
     fn from(_err: pest::error::Error<T>) -> Error {
         Error::ParsingError
@@ -29,202 +235,9 @@ impl std::convert::From<std::num::ParseIntError> for Error {
     }
 }
 
-fn parse_identifier(pair: Pair<Rule>) -> Result<String, Error> {
-    let identifier = pair.into_inner().next().ok_or(Error::ParsingError)?;
-    Ok(identifier.as_str().to_string())
-}
-
-fn parse_function_argument(pair: Pair<Rule>) -> Result<(IceType, String), Error> {
-    let mut identifier = None;
-
-    for child in pair.into_inner() {
-        match child.as_rule() {
-            Rule::identifier => {
-                match identifier {
-                    Some(identifier) => {
-                        return Ok((IceType::from(identifier)?, child.as_str().to_string()));
-                    },
-                    _ => {
-                        identifier = Some(child.as_str());
-                    }
-                }
-            },
-            _ => return Err(Error::ParsingError)
-        };
-    }
-    Err(Error::ParsingError)
-}
-
-fn parse_function(pair: Pair<Rule>, interface: &mut Interface) -> Result<(), Error> {
-    let mut fn_return = IceType::VoidType;
-    let mut fn_name = String::new();
-    let mut fn_args = Vec::new();
-
-    for child in pair.into_inner() {
-        match child.as_rule() {
-            Rule::function_return => { fn_return = IceType::from(&parse_identifier(child)?)?; },
-            Rule::function_name => { fn_name = parse_identifier(child)?; },
-            Rule::function_argument => {
-                fn_args.push(parse_function_argument(child)?);
-            },
-            Rule::function_end => {
-                let mut function = Function::new(&fn_name, fn_return.clone());
-                for (arg_type, arg_name) in &fn_args {
-                    function.add_argument(&arg_name, arg_type.clone());
-                }
-                interface.add_function(function);
-            },
-            _ => return Err(Error::ParsingError)
-        };
-    }
-
-    Ok(())
-}
-
-fn parse_struct_line(pair: Pair<Rule>, structure: &mut Struct) -> Result<(), Error> {
-    let mut identifier = None;
-
-    for child in pair.into_inner() {
-        match child.as_rule() {
-            Rule::identifier => {
-                match identifier {
-                    Some(identifier) => {
-                        structure.add_member(child.as_str(), IceType::from(identifier)?);
-                    },
-                    _ => {
-                        identifier = Some(child.as_str());
-                    }
-                }
-            },
-            _ => return Err(Error::ParsingError)
-        };
-    }
-    Ok(())
-}
-
-fn parse_enum_line(pair: Pair<Rule>, enumeration: &mut Enum) -> Result<(), Error> {
-    let mut last_type = None;
-    for child in pair.into_inner() {
-        match child.as_rule() {
-            Rule::identifier => {
-                match last_type {
-                    Some(last) => {
-                        enumeration.add_variant(last, None);
-                    },
-                    _ => {}
-                }
-                last_type = Some(child.as_str());
-            },
-            Rule::numeric_value => {
-                let number:i32 = child.as_str().parse()?;
-                enumeration.add_variant(last_type.ok_or(Error::ParsingError)?, Some(number));
-                last_type = None;
-            },
-            _ => return Err(Error::ParsingError)
-        }
-    }
-    match last_type {
-        Some(last) => {
-            enumeration.add_variant(last, None);
-        },
-        _ => {}
-    }
-    Ok(())
-}
-
-fn parse_interface(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
-    let mut inner = pair.into_inner();
-    let identifier = inner.next().unwrap();
-    if identifier.as_rule() != Rule::identifier {
-        return Err(Error::ParsingError);
-    }
-
-    let mut interface = Interface::new(identifier.as_str());
-    for child in inner {
-        parse_function(child, &mut interface)?;
-    }
-    parent_module.add_interface(&interface);
-    Ok(())
-}
-
-fn parse_struct(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
-    let mut inner = pair.into_inner();
-    let identifier = inner.next().unwrap();
-    if identifier.as_rule() != Rule::identifier {
-        return Err(Error::ParsingError);
-    }
-
-    let mut structure = Struct::new(identifier.as_str());
-    for child in inner {
-        parse_struct_line(child, &mut structure)?;
-    }
-    parent_module.add_struct(&structure);
-
-    Ok(())
-}
-
-fn parse_enum(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
-    let mut inner = pair.into_inner();
-    let identifier = inner.next().unwrap();
-    if identifier.as_rule() != Rule::identifier {
-        return Err(Error::ParsingError);
-    }
-
-    let mut enumeration = Enum::new(identifier.as_str());
-    for child in inner {
-        parse_enum_line(child, &mut enumeration)?;
-    }
-    parent_module.add_enum(&enumeration);
-    Ok(())
-}
-
-fn parse_module(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
-    let mut inner = pair.into_inner();
-    let identifier = inner.next().unwrap();
-    if identifier.as_rule() != Rule::identifier {
-        return Err(Error::ParsingError);
-    }
-
-    let sub_module = parent_module.add_sub_module(identifier.as_str())?;
-
-    for child in inner {
-        parse_ice(child, sub_module)?;
-    }
-    Ok(())
-}
-
-fn parse_ice(pair: Pair<Rule>, parent_module: &mut Module) -> Result<(), Error> {
-    match pair.as_rule() {
-        Rule::ice | Rule::any_block => {
-            parse_ice(pair.into_inner().next().unwrap(), parent_module)?;
-        },
-        Rule::module_block => {
-            parse_module(pair, parent_module)?;
-        },
-        Rule::enum_block => {
-            parse_enum(pair, parent_module)?;
-        },
-        Rule::struct_block => {
-            parse_struct(pair, parent_module)?;
-        },
-        Rule::interface_block => {
-            parse_interface(pair, parent_module)?;
-        },
-        _ => { return Err(Error::ParsingError); }
-    }
-
-    Ok(())
-}
-
 pub fn parse_ice_file(ice_file: &Path) -> Result<Module, Error> {
     let mut file = File::open(ice_file)?;
-    let mut content = String::new();
-    file.read_to_string(&mut content)?;
-
-    let mut root = Module::root();
-    let slice = IceParser::parse(Rule::ice, &content)?.next().unwrap();
-    parse_ice(slice, &mut root)?;
-
+    let root = Module::parse_file(&mut file)?;
     Ok(root)
 }
 
@@ -234,13 +247,37 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_function() {
+        assert!(IceParser::parse(Rule::function, "void test();").is_ok());
+        assert!(IceParser::parse(Rule::function, "long test();").is_ok());
+        assert!(IceParser::parse(Rule::function, "long test(long width);").is_ok());
+        assert!(IceParser::parse(Rule::function, "long test(long width, long height);").is_ok());
+        assert!(IceParser::parse(Rule::function, "long test(long radius, out long area);").is_ok());
+        assert!(IceParser::parse(Rule::function, "long test(out long area);").is_ok());
+        assert!(IceParser::parse(Rule::function, "long test(out long area) throws exception;").is_ok());
+
+        assert!(IceParser::parse(Rule::function, "123abc test();").is_err());
+        assert!(IceParser::parse(Rule::function, "void 123abc();").is_err());
+        assert!(IceParser::parse(Rule::function, "void test(123abc width);").is_err());
+        assert!(IceParser::parse(Rule::function, "void test(long 123abc);").is_err());
+        assert!(IceParser::parse(Rule::function, "void test(long width height);").is_err());
+        assert!(IceParser::parse(Rule::function, "void test(out 123abc height);").is_err());
+        assert!(IceParser::parse(Rule::function, "void test(out long 123abc);").is_err());
+        assert!(IceParser::parse(Rule::function, "void test(out long result, long input);").is_err());
+    }
+
+    #[test]
     fn test_module_block() {
+        println!("{:?}", IceParser::parse(Rule::ice, "#pragma once\nmodule Test { }"));
+        assert!(IceParser::parse(Rule::ice, "#pragma once\nmodule Test { }").is_ok());
+
         assert!(IceParser::parse(Rule::module_block, "module Test { }").is_ok());
         assert!(IceParser::parse(Rule::module_block, "module Test { module Test2 {} }").is_ok());
         assert!(IceParser::parse(Rule::module_block, "module Test { enum Test2 { First } }").is_ok());
         assert!(IceParser::parse(Rule::module_block, "module Test { struct Test2 { long width; } }").is_ok());
         assert!(IceParser::parse(Rule::module_block, "module Test { interface Test2 { void test(); } }").is_ok());
 
+        assert!(IceParser::parse(Rule::module_block, "module {}").is_err());
         assert!(IceParser::parse(Rule::module_block, "struct Test {}").is_err());
         assert!(IceParser::parse(Rule::module_block, "interface Test {}").is_err());
         assert!(IceParser::parse(Rule::module_block, "enum Test {}").is_err());
@@ -249,6 +286,11 @@ mod test {
 
     #[test]
     fn test_enum_block() {
+        assert!(IceParser::parse(Rule::enum_lines, "First = 0").is_ok());
+        assert!(IceParser::parse(Rule::enum_lines, "First = 0, Second = 1").is_ok());
+        assert!(IceParser::parse(Rule::enum_lines, "First").is_ok());
+        assert!(IceParser::parse(Rule::enum_lines, "First, Second").is_ok());
+
         assert!(IceParser::parse(Rule::enum_block, "enum Test { First = 0 }").is_ok());
         assert!(IceParser::parse(Rule::enum_block, "enum Test { First }").is_ok());
         assert!(IceParser::parse(Rule::enum_block, "enum Test { First = 0, Second = 1 }").is_ok());

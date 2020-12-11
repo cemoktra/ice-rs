@@ -1,30 +1,44 @@
+ice = { SOI ~ NEWLINE* ~ pragma+ ~ NEWLINE* ~ (module_block)+ ~ EOI }
+
 WHITESPACE = _{ " " }
 COMMENT = _{ ("//" ~ (!NEWLINE ~ ANY)*) | ( "/*" ~ ("!*/" ~ ANY)*) }
 
-identifier = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
-
-numeric_value = { (!NEWLINE ~ !ASCII_ALPHA ~ ASCII_DIGIT)+ }
-
 pragma = _{ "#" ~ (!NEWLINE ~ ANY)* }
 
-enum_line = { identifier ~ ("=" ~ numeric_value)* ~ NEWLINE* }
-struct_line = { identifier ~ identifier ~ ";" }
+identifier = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
+numeric_value = { (!NEWLINE ~ !ASCII_ALPHA ~ ASCII_DIGIT)+ }
 
-function_argument = { identifier ~ identifier }
-function_return = { identifier }
-function_name = { identifier }
-function = { function_return ~ function_name ~ "(" ~ function_argument* ~ ("," ~ function_argument)* ~ function_end ~ NEWLINE* }
-function_end = { ");" }
+keyword_out = { "out" }
+keyword_module = { "module" }
+keyword_interface = { "interface" }
+keyword_enum = { "enum" }
+keyword_struct = { "struct" }
+throws_keyword = { "throws" }
 
-enum_block = { "enum" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
-struct_block = { "struct" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (struct_line ~ NEWLINE*)+ ~ NEWLINE* ~ "}" ~ NEWLINE* }
-interface_block = { "interface" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (function ~ NEWLINE*)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
-module_block = { "module" ~ identifier ~ NEWLINE* ~ "{" ~ NEWLINE* ~ (any_block)* ~ NEWLINE* ~ "}" ~ NEWLINE* }
+block_open = { NEWLINE* ~ "{" ~ NEWLINE* }
+block_close = { "}" ~ NEWLINE* }
 
-any_block = { module_block | enum_block | struct_block | interface_block }
+any_block = { module_block | interface_block | enum_block | struct_block }
 
+module_block = { keyword_module ~ identifier ~ block_open ~ (any_block)* ~ block_close }
+interface_block = { keyword_interface ~ identifier ~ block_open ~ (function)* ~ block_close }
+enum_block = { keyword_enum ~ identifier ~ block_open ~ enum_lines ~ block_close }
+struct_block = { keyword_struct ~ identifier ~ block_open ~ struct_line+ ~ block_close }
 
+fn_return = { identifier }
+fn_name = { identifier }
+fn_arg_open = { "(" }
+fn_arg = { !keyword_out ~ identifier ~ identifier }
+fn_arg_out = { keyword_out ~ identifier ~ identifier }
+fn_arg_list = { (fn_arg ~ ("," ~ fn_arg)*)? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*)? }
+fn_arg_close = { ")" }
+fn_throws = { throws_keyword ~ identifier }
+function = {
+    fn_return ~ fn_name ~ fn_arg_open ~ fn_arg_list ~ fn_arg_close ~ fn_throws? ~ ";" ~ NEWLINE*
+}
 
+enum_line = { identifier ~ ("=" ~ numeric_value)? }
+enum_lines = { enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* }
 
-
-ice = { SOI ~ NEWLINE* ~ ((pragma | any_block) ~ NEWLINE*)* ~ EOI }
+struct_line_end = { ";" }
+struct_line = { identifier ~ identifier ~ struct_line_end ~ NEWLINE* }

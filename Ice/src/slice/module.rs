@@ -20,7 +20,7 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn root() -> Module {
+    pub fn new() -> Module {
         Module {
             name: String::from(""),
             full_name: String::from(""),
@@ -33,6 +33,10 @@ impl Module {
 
     pub fn snake_name(&self) -> String {
         snakecase::to_snake_case(&self.name)
+    }
+
+    pub fn add_module(&mut self, module: Module) {
+        self.sub_modules.push(module);
     }
 
     pub fn add_sub_module(&mut self, name: &str) -> Result<&mut Module, Error> {
@@ -50,16 +54,16 @@ impl Module {
         self.sub_modules.last_mut().ok_or(Error::Unexpected)
     }
 
-    pub fn add_enum(&mut self, enumeration: &Enum) {
-        self.enumerations.push(enumeration.clone());
+    pub fn add_enum(&mut self, enumeration: Enum) {
+        self.enumerations.push(enumeration);
     }
 
-    pub fn add_struct(&mut self, struct_decl: &Struct) {
-        self.structs.push(struct_decl.clone());
+    pub fn add_struct(&mut self, struct_decl: Struct) {
+        self.structs.push(struct_decl);
     }
 
-    pub fn add_interface(&mut self, interface: &Interface) {
-        self.interfaces.push(interface.clone());
+    pub fn add_interface(&mut self, interface: Interface) {
+        self.interfaces.push(interface);
     }
 
     pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Error> {

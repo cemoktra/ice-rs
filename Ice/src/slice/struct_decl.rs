@@ -7,11 +7,18 @@ use inflector::cases::{snakecase, pascalcase};
 
 #[derive(Clone, Debug)]
 pub struct Struct {
-    name: String,
+    pub name: String,
     members: Vec<(String, IceType)>
 }
 
 impl Struct {
+    pub fn empty() -> Struct {
+        Struct {
+            name: String::from(""),
+            members: Vec::new()
+        }
+    }
+
     pub fn new(name: &str) -> Struct {
         Struct {
             name: String::from(name),
