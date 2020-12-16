@@ -14,17 +14,21 @@ keyword_module = { "module" }
 keyword_interface = { "interface" }
 keyword_enum = { "enum" }
 keyword_struct = { "struct" }
-throws_keyword = { "throws" }
+keyword_throws = { "throws" }
+keyword_exception = { "exception" }
+keyword_extends = { "extends" }
 
 block_open = { NEWLINE* ~ "{" ~ NEWLINE* }
 block_close = { "}" ~ NEWLINE* }
 
-any_block = { module_block | interface_block | enum_block | struct_block }
+any_block = { module_block | interface_block | enum_block | struct_block | exception_block }
 
 module_block = { keyword_module ~ identifier ~ block_open ~ (any_block | typedef)* ~ block_close }
 interface_block = { keyword_interface ~ identifier ~ block_open ~ (function)* ~ block_close }
 enum_block = { keyword_enum ~ identifier ~ block_open ~ enum_lines ~ block_close }
 struct_block = { keyword_struct ~ identifier ~ block_open ~ struct_line+ ~ block_close }
+exception_extends = { keyword_extends ~ identifier }
+exception_block = { keyword_exception ~ identifier ~ exception_extends? ~ block_open ~ struct_line* ~ block_close }
 
 fn_return = { identifier }
 fn_name = { identifier }
@@ -33,7 +37,7 @@ fn_arg = { !keyword_out ~ typename ~ identifier }
 fn_arg_out = { keyword_out ~ typename ~ identifier }
 fn_arg_list = { (fn_arg ~ ("," ~ fn_arg)*)? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*)? }
 fn_arg_close = { ")" }
-fn_throws = { throws_keyword ~ identifier }
+fn_throws = { keyword_throws ~ identifier }
 function = {
     fn_return ~ fn_name ~ fn_arg_open ~ fn_arg_list ~ fn_arg_close ~ fn_throws? ~ ";" ~ NEWLINE*
 }

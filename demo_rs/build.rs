@@ -1,9 +1,9 @@
-use ice_rs::errors::Error;
+use ice_rs::errors::*;
 use ice_rs::slice::parser;
 use std::path::Path;
 
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut settings = config::Config::default();
     settings.merge(config::File::with_name("Ice")).expect("Could not open Cargo.toml");
 
@@ -18,9 +18,9 @@ fn main() -> Result<(), Error> {
         Path::new(&outdir),
         &slice_path
             .file_stem()
-            .ok_or(Error::ParsingError)?
+            .ok_or(Box::new(ParsingError {}))?
             .to_str()
-            .ok_or(Error::ParsingError)?
+            .ok_or(Box::new(ParsingError {}))?
             .to_lowercase()
     )
 }

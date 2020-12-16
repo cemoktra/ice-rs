@@ -1,7 +1,6 @@
-use ice_rs::errors::Error;
-use ice_rs::slice::{
+use ice_rs::{errors::ParsingError, slice::{
     parser
-};
+}};
 use clap::Clap;
 use std::path::Path;
 
@@ -13,9 +12,17 @@ struct Opts {
     out_dir: String
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
     let slice_path = Path::new(&opts.slice_file);
     let root = parser::parse_ice_file(Path::new(&slice_path))?;
-    root.generate(Path::new(&opts.out_dir), &slice_path.file_stem().ok_or(Error::ParsingError)?.to_str().ok_or(Error::ParsingError)?.to_lowercase())
+    root.generate(
+        Path::new(&opts.out_dir),
+        &slice_path
+            .file_stem()
+            .ok_or(Box::new(ParsingError {}))?
+            .to_str()
+            .ok_or(Box::new(ParsingError {}))?
+            .to_lowercase()
+    )
 }

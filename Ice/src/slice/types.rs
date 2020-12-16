@@ -1,4 +1,3 @@
-use crate::errors::Error;
 use regex::Regex;
 
 #[derive(Clone, Debug)]
@@ -17,14 +16,8 @@ pub enum IceType {
     CustomType(String)
 }
 
-impl std::convert::From<regex::Error> for Error {
-    fn from(_err: regex::Error) -> Error {
-        Error::DecodingError
-    }
-}
-
 impl IceType {
-    pub fn from(text: &str) -> Result<IceType, Error> {
+    pub fn from(text: &str) -> Result<IceType, Box<dyn std::error::Error>> {
         let type_re = Regex::new(
             r#"(?x)
             (void) |

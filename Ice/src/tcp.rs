@@ -1,24 +1,18 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
 
-use crate::errors::Error;
 use crate::encoding::{ToBytes, FromBytes};
 use crate::protocol::{Header, MessageType, RequestData, ReplyData};
 use crate::transport::Transport;
+use crate::errors::*;
 
 pub struct TcpTransport {
     stream: TcpStream,
     buffer: Vec<u8>
 }
 
-impl std::convert::From<std::io::Error> for Error {
-    fn from(_err: std::io::Error) -> Error {
-        Error::TcpError
-    }
-}
-
 impl TcpTransport {
-    pub fn new(address: &str) -> Result<TcpTransport, Error>
+    pub fn new(address: &str) -> Result<TcpTransport, Box<dyn std::error::Error>>
     {
         let mut transport = TcpTransport {
             stream: TcpStream::connect(address)?,
@@ -27,13 +21,13 @@ impl TcpTransport {
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Error::TcpError)
+            _ => Err(Box::new(ProtocolError{}))
         }
     }
 }
 
 impl Transport for TcpTransport {
-    fn read_message(&mut self) -> Result<MessageType, Error>
+    fn read_message(&mut self) -> Result<MessageType, Box<dyn std::error::Error>>
     {
         let bytes = self.stream.read(&mut self.buffer)?;
         let mut read: i32 = 0;
@@ -45,23 +39,23 @@ impl Transport for TcpTransport {
                 Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
-            _ => Err(Error::ProtocolError)
+            _ => Err(Box::new(ProtocolError{}))
         }
     }
 
-    fn validate_connection(&mut self) -> Result<(), Error>
+    fn validate_connection(&mut self) -> Result<(), Box<dyn std::error::Error>>
     {
         let header = Header::new(0, 14);
         let bytes = header.to_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Error::TcpError);
+            return Err(Box::new(ProtocolError {}))
         }
 
         Ok(())
     }
 
-    fn make_request(&mut self, request: &RequestData) -> Result<(), Error>
+    fn make_request(&mut self, request: &RequestData) -> Result<(), Box<dyn std::error::Error>>
     {
         let req_bytes = request.to_bytes()?;
         let header = Header::new(0, 14 + req_bytes.len() as i32);
@@ -70,7 +64,7 @@ impl Transport for TcpTransport {
 
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Error::TcpError);
+            return Err(Box::new(ProtocolError {}))
         }
         Ok(())
     }

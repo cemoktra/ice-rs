@@ -23,6 +23,13 @@ module RustDemo
     sequence<double> DoubleSeq;
     dictionary<string, double> TestDict;
 
+    exception DemoException {
+        string message;
+    }
+    exception DerivedDemoException extends DemoException {
+        string detail;
+    }
+
     interface Demo
     {
         // test simple call
@@ -46,5 +53,10 @@ module RustDemo
 
         // test dict
         double getHello(TestDict x);
+
+        // test exceptions
+        void nativeException();
+        void baseException() throws DemoException;
+        void derivedException() throws DerivedDemoException;
     }
 }

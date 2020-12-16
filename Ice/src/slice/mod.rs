@@ -6,3 +6,4 @@ pub mod types;
 pub mod writer;
 pub mod function;
 pub mod parser;
+pub mod exception;

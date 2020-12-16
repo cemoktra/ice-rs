@@ -1,6 +1,5 @@
 use crate::slice::types::IceType;
 use crate::slice::writer;
-use crate::errors::Error;
 use std::fs::File;
 use inflector::cases::snakecase;
 
@@ -9,7 +8,8 @@ use inflector::cases::snakecase;
 pub struct Function {
     pub name: String,
     pub return_type: IceType,
-    arguments: Vec<(String, IceType, bool)>
+    arguments: Vec<(String, IceType, bool)>,
+    throws: Option<IceType>
 }
 
 impl Function {
@@ -17,7 +17,8 @@ impl Function {
         Function {
             name: String::new(),
             return_type: IceType::VoidType,
-            arguments: Vec::new()
+            arguments: Vec::new(),
+            throws: None
         }
     }
 
@@ -25,7 +26,8 @@ impl Function {
         Function {
             name: String::from(name),
             return_type: return_type,
-            arguments: Vec::new()
+            arguments: Vec::new(),
+            throws: None
         }
     }
 
@@ -37,7 +39,11 @@ impl Function {
         self.arguments.push((String::from(name), var_type, output));
     }
 
-    pub fn generate_decl(&self, file: &mut File) -> Result<(), Error> {
+    pub fn set_throw(&mut self, throws: Option<IceType>) {
+        self.throws = throws;
+    }
+
+    pub fn generate_decl(&self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
         writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
         for (key, var_type, out) in &self.arguments {
             writer::write(
@@ -52,10 +58,11 @@ impl Function {
                 0
             )?;
         }
-        writer::write(file, &format!(") -> Result<{}, Error>;\n", self.return_type.rust_type()), 0)
+        // TODO: add throws here
+        writer::write(file, &format!(") -> Result<{}, Box<dyn std::error::Error>>;\n", self.return_type.rust_type()), 0)
     }
 
-    pub fn generate_impl(&self, file: &mut File) -> Result<(), Error> {
+    pub fn generate_impl(&self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
         writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
         for (key, var_type, out) in &self.arguments {
             writer::write(
@@ -70,7 +77,8 @@ impl Function {
                 0
             )?;
         }
-        writer::write(file, &format!(") -> Result<{}, Error> {{\n", self.return_type.rust_type()), 0)?;
+        // TODO: add throws here
+        writer::write(file, &format!(") -> Result<{}, Box<dyn std::error::Error>> {{\n", self.return_type.rust_type()), 0)?;
 
         let input_args_count = self.arguments.iter().filter(|(_, _, out)| !*out).count();
         let input_args = self.arguments.iter().filter(|(_, _, out)| !*out);
@@ -108,6 +116,8 @@ impl Function {
                 )?;
             }
         }
+
+        // TODO: convert exception
         
         match self.return_type {
             IceType::VoidType => {

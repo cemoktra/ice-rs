@@ -43,6 +43,14 @@ class DemoI(RustDemo.Demo):
             return x['hello']
         return math.nan
 
+    def nativeException(self, current):
+        raise NotImplementedError
+
+    def baseException(self, current):
+        raise RustDemo.DemoException("test")
+
+    def derivedException(self, current):
+        raise RustDemo.DerivedDemoException("test", "detail")
 
 #
 # Ice.initialize returns an initialized Ice communicator,
