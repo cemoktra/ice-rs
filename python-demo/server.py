@@ -50,7 +50,7 @@ class DemoI(RustDemo.Demo):
         raise RustDemo.DemoException("test")
 
     def derivedException(self, current):
-        raise RustDemo.DerivedDemoException("test", "detail")
+        raise RustDemo.DerivedDemoException("test", "detail", False)
 
 #
 # Ice.initialize returns an initialized Ice communicator,

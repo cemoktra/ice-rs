@@ -2,6 +2,7 @@ use crate::errors::*;
 use crate::transport::Transport;
 use crate::tcp::TcpTransport;
 use crate::protocol::{MessageType, ReplyData, RequestData, Identity, Encapsulation};
+use crate::encoding::FromBytes;
 
 pub struct Proxy {
     pub transport: Box<dyn Transport + 'static>,
@@ -33,13 +34,21 @@ impl Proxy {
         }
     }
 
-    pub fn make_request(&mut self, request: &RequestData) -> Result<ReplyData, Box<dyn std::error::Error>>
+    pub fn make_request<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, request: &RequestData) -> Result<ReplyData, Box<dyn std::error::Error>>
     {
         self.transport.make_request(request)?;
         let reply = self.transport.read_message()?;
         match reply {
             MessageType::Reply(_header, reply) => {
-                Ok(reply)
+                match reply.status {
+                    1 => {
+                        let mut read = 0;
+                        Err(Box::new(UserError {
+                            exception: T::from_bytes(&reply.body.data, &mut read)?
+                        }))
+                    }
+                    _ => Ok(reply)
+                }
             },
             _ => Err(Box::new(ProtocolError {}))
         }

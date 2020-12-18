@@ -28,6 +28,7 @@ module RustDemo
     }
     exception DerivedDemoException extends DemoException {
         string detail;
+        bool fatal;
     }
 
     interface Demo
