@@ -44,7 +44,7 @@ impl Exception {
         
         writer::write(file, "}\n}\n\n", 1)?;
 
-        writer::write(file, &format!("impl std::error::Error for {} {{}}\n", self.class_name()), 0)?;
+        writer::write(file, &format!("impl std::error::Error for {} {{}}\n\n", self.class_name()), 0)?;
 
         let mut lines = Vec::new();
         for (key, _) in &self.members {
@@ -56,7 +56,8 @@ impl Exception {
         for (key, var_type) in &self.members {
             lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", snakecase::to_snake_case(key), var_type.rust_type()));
         }
-        writer::write_from_bytes(file, &self.class_name(), lines)?;
+
+        writer::write_from_bytes_exception(file, &self.class_name(), lines)?;
 
         Ok(())
     }

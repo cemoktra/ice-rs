@@ -30,3 +30,18 @@ pub fn write_from_bytes(file: &mut File, object_name: &str, lines: Vec<String>) 
     write(file, "Ok(obj)\n", 2)?;
     write(file, "}\n}\n\n", 1)
 }
+
+pub fn write_from_bytes_exception(file: &mut File, object_name: &str, lines: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+    write(file, &format!("impl FromBytes for {} {{\n", &object_name), 0)?;
+    write(file, "fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {\n", 1)?;
+    write(file, "let mut read = 1;\n", 2)?;
+    write(file, "let _type_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read).expect(\"TODO\");\n", 2)?;
+    write(file, "let obj = Self{\n", 2)?;
+    for line in lines {
+        write(file, &line, 3)?;
+    }
+    write(file, "};\n", 2)?;
+    write(file, "*read_bytes = *read_bytes + read;\n", 2)?;
+    write(file, "Ok(obj)\n", 2)?;
+    write(file, "}\n}\n\n", 1)
+}

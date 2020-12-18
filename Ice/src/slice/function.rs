@@ -77,7 +77,6 @@ impl Function {
                 0
             )?;
         }
-        // TODO: add throws here
         writer::write(file, &format!(") -> Result<{}, Box<dyn std::error::Error>> {{\n", self.return_type.rust_type()), 0)?;
 
         let input_args_count = self.arguments.iter().filter(|(_, _, out)| !*out).count();
@@ -95,10 +94,19 @@ impl Function {
             _ => require_reply = true
         }
 
+        // TODO: add dispatch for real user error here
+        let error_type = match &self.throws {
+            Some(throws) => {
+                throws.rust_type()
+            },
+            _ => {
+                String::from("ProtocolError")
+            }
+        };
         if require_reply {
-            writer::write(file, &format!("let reply = self.dispatch(&String::from(\"{}\"), 0", self.name), 2)?;
+            writer::write(file, &format!("let reply = self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
         } else {
-            writer::write(file, &format!("self.dispatch(&String::from(\"{}\"), 0", self.name), 2)?;
+            writer::write(file, &format!("self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
         }
         writer::write(file, ", &Encapsulation::from(bytes))?;\n\n", 0)?;
 

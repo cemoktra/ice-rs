@@ -46,9 +46,9 @@ impl Interface {
         writer::write(file, &format!("impl IceObject for {}Prx {{\n", self.class_name()), 0)?;
         writer::write(file, &format!("const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name), 1)?;
         writer::write(file, &format!("const NAME: &'static str = \"{}\";\n\n", context), 1)?;
-        writer::write(file, "fn dispatch(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Box<dyn std::error::Error>> {\n", 1)?;
+        writer::write(file, "fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Box<dyn std::error::Error>> {\n", 1)?;
         writer::write(file, &format!("let req = self.proxy.create_request(&{}Prx::NAME, op, mode, params);\n", self.class_name()), 2)?;
-        writer::write(file, "self.proxy.make_request(&req)\n", 2)?;
+        writer::write(file, "self.proxy.make_request::<T>(&req)\n", 2)?;
         writer::write(file, "}\n}\n\n", 1)?;
 
         writer::write(file, &format!("impl {} for {}Prx {{\n", self.class_name(), self.class_name()), 0)?;
