@@ -1,7 +1,8 @@
-use crate::errors::Error;
+use crate::errors::*;
 use crate::transport::Transport;
 use crate::tcp::TcpTransport;
 use crate::protocol::{MessageType, ReplyData, RequestData, Identity, Encapsulation};
+use crate::encoding::FromBytes;
 
 pub struct Proxy {
     pub transport: Box<dyn Transport + 'static>,
@@ -9,7 +10,7 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    pub fn new(proxy_string: &str) -> Result<Proxy, Error> {
+    pub fn new(proxy_string: &str) -> Result<Proxy, Box<dyn std::error::Error>> {
         // TODO: parse real proxy string
         Ok(Proxy {
             transport: Box::new(TcpTransport::new(proxy_string)?),
@@ -33,15 +34,23 @@ impl Proxy {
         }
     }
 
-    pub fn make_request(&mut self, request: &RequestData) -> Result<ReplyData, Error>
+    pub fn make_request<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, request: &RequestData) -> Result<ReplyData, Box<dyn std::error::Error>>
     {
         self.transport.make_request(request)?;
         let reply = self.transport.read_message()?;
         match reply {
             MessageType::Reply(_header, reply) => {
-                Ok(reply)
+                match reply.status {
+                    1 => {
+                        let mut read = 0;
+                        Err(Box::new(UserError {
+                            exception: T::from_bytes(&reply.body.data, &mut read)?
+                        }))
+                    }
+                    _ => Ok(reply)
+                }
             },
-            _ => Err(Error::ProtocolError) 
+            _ => Err(Box::new(ProtocolError {}))
         }
     }
 }

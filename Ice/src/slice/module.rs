@@ -1,7 +1,8 @@
-use crate::errors::Error;
+use crate::errors::*;
 use crate::slice::enumeration::Enum;
 use crate::slice::struct_decl::Struct;
 use crate::slice::interface::Interface;
+use crate::slice::exception::Exception;
 use crate::slice::writer;
 use std::path::Path;
 use std::fs::File;
@@ -17,6 +18,7 @@ pub struct Module {
     pub full_name: String,
     sub_modules: Vec<Module>,
     enumerations: Vec<Enum>,
+    exceptions: Vec<Exception>,
     structs: Vec<Struct>,
     interfaces: Vec<Interface>,
     typedefs: Vec<(String, IceType)>,
@@ -31,6 +33,7 @@ impl Module {
             enumerations: vec![],
             structs: vec![],
             interfaces: vec![],
+            exceptions: vec![],
             typedefs: vec![]
         }
     }
@@ -53,9 +56,9 @@ impl Module {
         self.sub_modules.push(module);
     }
 
-    pub fn add_sub_module(&mut self, name: &str) -> Result<&mut Module, Error> {
+    pub fn add_sub_module(&mut self, name: &str) -> Result<&mut Module, Box<dyn std::error::Error>> {
         if name.len() == 0 {
-            return Err(Error::Unexpected);
+            return Err(Box::new(ParsingError {}));
         }
         self.sub_modules.push(Module{
             name: String::from(name),
@@ -64,9 +67,10 @@ impl Module {
             enumerations: vec![],
             structs: vec![],
             interfaces: vec![],
+            exceptions: vec![],
             typedefs: vec![]
         });
-        self.sub_modules.last_mut().ok_or(Error::Unexpected)
+        self.sub_modules.last_mut().ok_or(Box::new(ParsingError {}))
     }
 
     pub fn add_enum(&mut self, enumeration: Enum) {
@@ -81,11 +85,15 @@ impl Module {
         self.interfaces.push(interface);
     }
 
+    pub fn add_exception(&mut self, exception: Exception) {
+        self.exceptions.push(exception);
+    }
+
     pub fn add_typedef(&mut self, id: &str, vartype: IceType) {
         self.typedefs.push((String::from(id), vartype.clone()));
     }
     
-    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Error> {
+    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
         let mut file = File::create(mod_file)?;
@@ -100,7 +108,7 @@ impl Module {
         }
 
         if self.enumerations.len() > 0 || self.structs.len() > 0 || self.interfaces.len() > 0 {
-            uses.insert(String::from("use ice_rs::errors::Error;\n"));
+            uses.insert(String::from("use ice_rs::errors::*;\n"));
         }
         if self.enumerations.len() > 0 {
             uses.insert(String::from("use num_enum::TryFromPrimitive;\n"));
@@ -145,6 +153,10 @@ impl Module {
 
         for struct_decl in &self.structs {
             struct_decl.generate(&mut file)?;
+        }
+
+        for exception in &self.exceptions {
+            exception.generate(&mut file)?;
         }
 
         file.write_all("\n".as_bytes())?;

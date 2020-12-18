@@ -1,4 +1,3 @@
-use ice_rs::errors::Error;
 use ice_rs::communicator::Communicator;
 use ice_rs::iceobject::IceObject;
 
@@ -7,7 +6,7 @@ use crate::gen::rust_demo::{Demo,DemoPrx,Rect};
 use std::collections::HashMap;
 
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let comm = Communicator{};
     let proxy = comm.string_to_proxy("127.0.0.1:10000")?;
 
@@ -42,6 +41,10 @@ fn main() -> Result<(), Error> {
     z.insert(String::from("hello"), 1.0);
     z.insert(String::from("world"), 2.0);
     println!("getHello: {:?}", demo_prx.get_hello(&z));
+
+    println!("nativeException: {:?}", demo_prx.native_exception());
+    println!("baseException: {:?}", demo_prx.base_exception());
+    println!("derivedException: {:?}", demo_prx.derived_exception());
 
     Ok(())
 }

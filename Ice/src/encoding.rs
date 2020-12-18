@@ -1,16 +1,9 @@
 use crate::protocol::{Encapsulation, Header, Identity, RequestData, ReplyData};
-use crate::errors::Error;
-
+use crate::errors::*;
 use std::convert::TryInto;
 use std::collections::HashMap;
-use std::string::FromUtf8Error;
 use std::hash::Hash;
 
-impl std::convert::From<FromUtf8Error> for Error {
-    fn from(_err: FromUtf8Error) -> Error {
-        Error::DecodingError
-    }
-}
 
 pub struct IceSize {
     pub size: i32
@@ -18,18 +11,18 @@ pub struct IceSize {
 
 // TRAITS
 pub trait ToBytes {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error>;
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>;
 }
 
 pub trait FromBytes {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> where Self: Sized;
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
 }
 
 
 
 // BASIC ENCODING FUNCTIONS
 impl ToBytes for IceSize {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         if self.size < 255 {
             Ok(vec![self.size as u8])
         } else {
@@ -41,14 +34,14 @@ impl ToBytes for IceSize {
 }
 
 impl FromBytes for IceSize {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         if bytes.len() < 1 {
-            Err(Error::DecodingError)
+            Err(Box::new(ProtocolError {}))
         }   
         else if bytes[0] == 255 {
             if bytes.len() < 5 {
-                Err(Error::DecodingError)
+                Err(Box::new(ProtocolError {}))
             } else {
                 *read_bytes = 1;
                 Ok(IceSize {
@@ -64,7 +57,7 @@ impl FromBytes for IceSize {
 }
 
 impl ToBytes for str {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         bytes.extend(self.as_bytes());
         Ok(bytes)
@@ -72,7 +65,7 @@ impl ToBytes for str {
 }
 
 impl ToBytes for String {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         bytes.extend(self.as_bytes());
         Ok(bytes)
@@ -80,7 +73,7 @@ impl ToBytes for String {
 }
 
 impl FromBytes for String {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let mut read = 0;
         let size = IceSize::from_bytes(bytes, &mut read)?.size;
@@ -92,7 +85,7 @@ impl FromBytes for String {
 
 
 impl<T: ToBytes, U: ToBytes> ToBytes for HashMap<T, U> {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         for (key, value) in self {
             bytes.extend(key.to_bytes()?);
@@ -103,7 +96,7 @@ impl<T: ToBytes, U: ToBytes> ToBytes for HashMap<T, U> {
 }
 
 impl<T: FromBytes + Eq + Hash, U: FromBytes> FromBytes for HashMap<T, U> {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let mut read = 0;
         let size = IceSize::from_bytes(bytes, &mut read)?.size;
@@ -121,7 +114,7 @@ impl<T: FromBytes + Eq + Hash, U: FromBytes> FromBytes for HashMap<T, U> {
 
 impl<T: ToBytes> ToBytes for Vec<T>
 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         for item in self {
             bytes.extend(item.to_bytes()?);
@@ -132,7 +125,7 @@ impl<T: ToBytes> ToBytes for Vec<T>
 
 impl<T: FromBytes> FromBytes for Vec<T>
 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let mut read = 0;
         let size = IceSize::from_bytes(bytes, &mut read)?.size;
@@ -147,13 +140,13 @@ impl<T: FromBytes> FromBytes for Vec<T>
 }
 
 impl ToBytes for u8 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(vec![*self])
     }
 }
 
 impl FromBytes for u8 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         *read_bytes = *read_bytes + 1;
         Ok(bytes[0])
@@ -161,131 +154,131 @@ impl FromBytes for u8 {
 }
 
 impl ToBytes for i16 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for i16 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let size = std::mem::size_of::<i16>();
         if bytes.len() < size {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(i16::from_le_bytes(barray))
             },
-            _ => Err(Error::DecodingError)
+            _ => Err(Box::new(ProtocolError {}))
         }
     }
 }
 
 impl ToBytes for i32 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for i32 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let size = std::mem::size_of::<i32>();
         if bytes.len() < size {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(i32::from_le_bytes(barray))
             },
-            _ => Err(Error::DecodingError)
+            _ => Err(Box::new(ProtocolError {}))
         }
     }
 }
 
 impl ToBytes for i64 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for i64 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let size = std::mem::size_of::<i64>();
         if bytes.len() < size {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(i64::from_le_bytes(barray))
             },
-            _ => Err(Error::DecodingError)
+            _ => Err(Box::new(ProtocolError {}))
         }
     }
 }
 
 impl ToBytes for f32 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for f32 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let size = std::mem::size_of::<f32>();
         if bytes.len() < size {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(f32::from_le_bytes(barray))
             },
-            _ => Err(Error::DecodingError)
+            _ => Err(Box::new(ProtocolError {}))
         }
     }
 }
 
 impl ToBytes for f64 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for f64 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         let size = std::mem::size_of::<f64>();
         if bytes.len() < size {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(f64::from_le_bytes(barray))
             },
-            _ => Err(Error::DecodingError)
+            _ => Err(Box::new(ProtocolError {}))
         }
     }
 }
 
 impl ToBytes for bool {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(vec![if *self { 1 } else { 0 }])
     }
 }
 
 impl FromBytes for bool {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         if bytes.len() < 1 {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
         *read_bytes = *read_bytes + 1;
         Ok(bytes[0] != 0)
@@ -295,7 +288,7 @@ impl FromBytes for bool {
 
 // PROTOCOL STRUCT AS/FROM BYTES
 impl ToBytes for Identity {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.name.to_bytes()?);
@@ -305,7 +298,7 @@ impl ToBytes for Identity {
 }
 
 impl FromBytes for Identity {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read = 0;
         let name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
         let category = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -318,7 +311,7 @@ impl FromBytes for Identity {
 }
 
 impl ToBytes for Encapsulation {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(&self.size.to_le_bytes());
@@ -332,10 +325,10 @@ impl ToBytes for Encapsulation {
 }
 
 impl FromBytes for Encapsulation {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read: i32 = 0;
         if bytes.len() < 6 {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
 
         let size = i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -353,7 +346,7 @@ impl FromBytes for Encapsulation {
 }
 
 impl ToBytes for RequestData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.request_id.to_bytes()?);
@@ -370,7 +363,7 @@ impl ToBytes for RequestData {
 }
 
 impl FromBytes for RequestData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read = 0;
         let request_id = i32::from_bytes(bytes, &mut read)?;
         let id = Identity::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -395,7 +388,7 @@ impl FromBytes for RequestData {
 
 
 impl ToBytes for ReplyData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.request_id.to_bytes()?);
@@ -407,26 +400,41 @@ impl ToBytes for ReplyData {
 }
 
 impl FromBytes for ReplyData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read: i32 = 0;
         if bytes.len() < 11 {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
 
         let request_id = i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
         let status = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        *read_bytes = *read_bytes + read;
-        Ok(ReplyData {
-            request_id: request_id,
-            status: status,
-            body: encapsulation
-        })
+        match status {
+            0 | 1 => {
+                let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                *read_bytes = *read_bytes + read;
+                Ok(ReplyData {
+                    request_id: request_id,
+                    status: status,
+                    body: encapsulation
+                })
+            }
+            // 1 => {
+            //     Err(Error::EncapsulatedUserException(Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?))
+            // }
+            7 => {
+                Err(Box::new(
+                    RemoteException { 
+                        cause: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+                    }
+                ))
+            }
+            _ => Err(Box::new(ProtocolError {}))
+        }
     }
 }
 
 impl ToBytes for Header {
-    fn to_bytes(&self) -> Result<Vec<u8>, Error>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.magic.as_bytes());
@@ -443,14 +451,14 @@ impl ToBytes for Header {
 }
 
 impl FromBytes for Header {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         if bytes.len() < 14 {
-            return Err(Error::DecodingError);
+            return Err(Box::new(ProtocolError {}));
         }
 
         let magic = String::from_utf8(bytes[0..4].to_vec())?;
         if magic != "IceP" {
-            return Err(Error::ProtocolError);
+            return Err(Box::new(ProtocolError {}));
         }        
         let mut read: i32 = 4;
         let protocol_major = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;

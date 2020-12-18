@@ -1,9 +1,8 @@
 use crate::protocol::{RequestData, MessageType};
-use crate::errors::Error;
 
 
 pub trait Transport {
-    fn read_message(&mut self) -> Result<MessageType, Error>;
-    fn validate_connection(&mut self) -> Result<(), Error>;
-    fn make_request(&mut self, request: &RequestData) -> Result<(), Error>;
+    fn read_message(&mut self) -> Result<MessageType, Box<dyn std::error::Error>>;
+    fn validate_connection(&mut self) -> Result<(), Box<dyn std::error::Error>>;
+    fn make_request(&mut self, request: &RequestData) -> Result<(), Box<dyn std::error::Error>>;
 }

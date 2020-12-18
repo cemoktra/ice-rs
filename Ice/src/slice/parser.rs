@@ -4,12 +4,13 @@ use std::fs::File;
 use std::io::prelude::*;
 use pest::Parser;
 use pest::iterators::Pairs;
-use crate::errors::Error;
+use crate::errors::*;
 use crate::slice::module::Module;
 use crate::slice::enumeration::Enum;
 use crate::slice::struct_decl::Struct;
 use crate::slice::interface::Interface;
 use crate::slice::function::Function;
+use crate::slice::exception::Exception;
 use crate::slice::types::IceType;
 
 
@@ -18,11 +19,11 @@ use crate::slice::types::IceType;
 pub struct IceParser;
 
 pub trait ParsedObject {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized;
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
 }
 
 impl ParsedObject for Module {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut module = Module::new();
         for child in rule {
             match child.as_rule() {
@@ -52,7 +53,11 @@ impl ParsedObject for Module {
                                 let interface = Interface::parse(block.into_inner())?;
                                 module.add_interface(interface);
                             },
-                            _ => return Err(Error::ParsingError)
+                            Rule::exception_block => {
+                                let exception = Exception::parse(block.into_inner())?;
+                                module.add_exception(exception);
+                            }
+                            _ => return Err(Box::new(ParsingError {}))
                         }
                     }
                 },
@@ -66,12 +71,12 @@ impl ParsedObject for Module {
                             Rule::typedef_end => {
                                 module.add_typedef(id, vartype.clone());
                             },
-                            _ => return Err(Error::ParsingError)
+                            _ => return Err(Box::new(ParsingError {}))
                         }
                     }
                 }
                 Rule::block_close => {},
-                _ => return Err(Error::ParsingError)
+                _ => return Err(Box::new(ParsingError {}))
             };
         }
         Ok(module)
@@ -79,7 +84,7 @@ impl ParsedObject for Module {
 }
 
 impl ParsedObject for Enum {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut enumeration = Enum::empty();
         for child in rule {
             match child.as_rule() {
@@ -101,17 +106,17 @@ impl ParsedObject for Enum {
                                         Rule::numeric_value => {
                                             value = Some(item.as_str().parse()?);
                                         },
-                                        _ => return Err(Error::ParsingError)
+                                        _ => return Err(Box::new(ParsingError {}))
                                     };
                                 }
                                 enumeration.add_variant(id, value);
                             },
-                            _ => return Err(Error::ParsingError)
+                            _ => return Err(Box::new(ParsingError {}))
                         }
                     }
                 },
                 Rule::block_close => {},
-                _ => return Err(Error::ParsingError)
+                _ => return Err(Box::new(ParsingError {}))
             }
         }
 
@@ -120,7 +125,7 @@ impl ParsedObject for Enum {
 }
 
 impl ParsedObject for Struct {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut structure = Struct::empty();
         for child in rule {            
             match child.as_rule() {
@@ -137,12 +142,12 @@ impl ParsedObject for Struct {
                             Rule::struct_line_end => {
                                 structure.add_member(id, typename.clone());
                             },
-                            _ => return Err(Error::ParsingError)
+                            _ => return Err(Box::new(ParsingError {}))
                         }
                     }
                 },
                 Rule::block_close => {},
-                _ => return Err(Error::ParsingError)
+                _ => return Err(Box::new(ParsingError {}))
             }
         }
 
@@ -151,7 +156,7 @@ impl ParsedObject for Struct {
 }
 
 impl ParsedObject for Interface {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut interface = Interface::empty();
         for child in rule {
             match child.as_rule() {
@@ -162,7 +167,7 @@ impl ParsedObject for Interface {
                     interface.add_function(Function::parse(child.into_inner())?);
                 },
                 Rule::block_close => {},
-                _ => return Err(Error::ParsingError)
+                _ => return Err(Box::new(ParsingError {}))
             }
         }
         Ok(interface)
@@ -170,7 +175,7 @@ impl ParsedObject for Interface {
 }
 
 impl ParsedObject for Function {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Error> where Self: Sized {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut function = Function::empty();
         for child in rule {
             match child.as_rule() {
@@ -189,18 +194,28 @@ impl ParsedObject for Function {
                                         Rule::typename => { typename = IceType::from(item.as_str())? },
                                         Rule::identifier => { id = item.as_str(); },
                                         Rule::keyword_out => { out = true; },
-                                        _ => return Err(Error::ParsingError)
+                                        _ => return Err(Box::new(ParsingError {}))
                                     }
                                 }
                                 function.add_argument(id, typename.clone(), out);
                             }
-                            _ => return Err(Error::ParsingError)
+                            _ => return Err(Box::new(ParsingError {}))
                         }
                     }
                 },
                 Rule::fn_arg_close => {},
-                Rule::fn_throws => {}
-                _ => return Err(Error::ParsingError)
+                Rule::fn_throws => {
+                    for arg in child.into_inner() {
+                        match arg.as_rule() {
+                            Rule::keyword_throws => {}
+                            Rule::identifier => {
+                                function.set_throw(Some(IceType::from(arg.as_str())?));
+                            }
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }
+                }
+                _ => return Err(Box::new(ParsingError {}))
             }
         }
         Ok(function)
@@ -208,7 +223,7 @@ impl ParsedObject for Function {
 }
 
 impl Module {
-    fn parse_file(file: &mut File) -> Result<Module, Error> {
+    fn parse_file(file: &mut File) -> Result<Module, Box<dyn std::error::Error>> {
         let mut root = Module::new();
         let mut content = String::new();
         file.read_to_string(&mut content)?;
@@ -226,31 +241,61 @@ impl Module {
                             Rule::EOI => {
                                 return Ok(root)
                             },
-                            _ => return Err(Error::ParsingError)
+                            _ => return Err(Box::new(ParsingError {}))
                         }
                     }
                 },
-                _ => return Err(Error::ParsingError)
+                _ => return Err(Box::new(ParsingError {}))
             };
         }
 
-        Err(Error::ParsingError)
+        Err(Box::new(ParsingError {}))
     }
 }
 
-impl<T> std::convert::From<pest::error::Error<T>> for Error {
-    fn from(_err: pest::error::Error<T>) -> Error {
-        Error::ParsingError
+impl ParsedObject for Exception {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+        let mut exception = Exception::empty();
+        for child in rule {            
+            match child.as_rule() {
+                Rule::keyword_exception => {},
+                Rule::identifier => { exception.name = String::from(child.as_str()); },
+                Rule::block_open => {},
+                Rule::exception_extends => {
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            Rule::keyword_extends => { },
+                            Rule::identifier => { 
+                                exception.extends = Some(String::from(line.as_str()));
+                            },
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }
+                }
+                Rule::struct_line => {
+                    let mut typename = IceType::VoidType;
+                    let mut id = "";
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            Rule::typename => { typename = IceType::from(line.as_str())? },
+                            Rule::identifier => { id = line.as_str(); },
+                            Rule::struct_line_end => {
+                                exception.add_member(id, typename.clone());
+                            },
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }
+                },
+                Rule::block_close => {},
+                _ => return Err(Box::new(ParsingError {}))
+            }
+        }
+
+        Ok(exception)
     }
 }
 
-impl std::convert::From<std::num::ParseIntError> for Error {
-    fn from(_err: std::num::ParseIntError) -> Error {
-        Error::ParsingError
-    }
-}
-
-pub fn parse_ice_file(ice_file: &Path) -> Result<Module, Error> {
+pub fn parse_ice_file(ice_file: &Path) -> Result<Module, Box<dyn std::error::Error>> {
     let mut file = File::open(ice_file)?;
     let root = Module::parse_file(&mut file)?;
     Ok(root)
