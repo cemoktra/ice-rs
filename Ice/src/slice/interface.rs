@@ -1,7 +1,7 @@
 use crate::slice::function::Function;
 use crate::slice::writer;
-use std::fs::File;
 use inflector::cases::classcase;
+use writer::Writer;
 
 
 #[derive(Clone, Debug)]
@@ -33,39 +33,66 @@ impl Interface {
         self.functions.push(function);
     }
 
-    pub fn generate(&self, file: &mut File, mod_path: &str, context: &str) -> Result<(), Box<dyn std::error::Error>> {
-        writer::write(file, &format!("pub trait {} : IceObject {{\n", self.class_name()), 0)?;
+    pub fn generate(&self, writer: &mut Writer, mod_path: &str, context: &str) -> Result<(), Box<dyn std::error::Error>> {
+        writer.generate_trait_open(&self.class_name(), Some("IceObject"), 0)?;
         for function in &self.functions {
-            function.generate_decl(file)?;  
+            function.generate_decl(writer)?;  
         }
-        writer::write(file, "}\n\n", 0)?;
+        writer.generate_close_block(0)?;
 
-        writer::write(file, &format!("pub struct {}Prx {{\n", self.class_name()), 0)?;
-        writer::write(file, "proxy: Proxy\n}\n\n", 1)?;
+        let prx_name = format!("{}Prx", self.class_name());
+        writer.generate_struct_open(&prx_name, 0)?;
+        writer.generate_struct_member("proxy", "Proxy", 1)?;
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
         
-        writer::write(file, &format!("impl IceObject for {}Prx {{\n", self.class_name()), 0)?;
-        writer::write(file, &format!("const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name), 1)?;
-        writer::write(file, &format!("const NAME: &'static str = \"{}\";\n\n", context), 1)?;
-        writer::write(file, "fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Box<dyn std::error::Error>> {\n", 1)?;
-        writer::write(file, &format!("let req = self.proxy.create_request(&{}Prx::NAME, op, mode, params);\n", self.class_name()), 2)?;
-        writer::write(file, "self.proxy.make_request::<T>(&req)\n", 2)?;
-        writer::write(file, "}\n}\n\n", 1)?;
+        writer.generate_impl(Some("IceObject"), &prx_name, 0)?;
 
-        writer::write(file, &format!("impl {} for {}Prx {{\n", self.class_name(), self.class_name()), 0)?;
+        writer.write(&format!("const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name), 1)?;
+        writer.write(&format!("const NAME: &'static str = \"{}\";\n\n", context), 1)?;
+
+        writer.generate_fn(
+            false, 
+            Some(String::from("T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes")),
+            "dispatch", 
+            vec![
+                String::from("&mut self"),
+                String::from("op: &str"),
+                String::from("mode: u8"),
+                String::from("params: &Encapsulation"),
+            ],
+            Some("Result<ReplyData, Box<dyn std::error::Error>>"),
+            true,
+            1
+        )?;
+        writer.write(&format!("let req = self.proxy.create_request(&{}::NAME, op, mode, params);\n", prx_name), 2)?;
+        writer.write("self.proxy.make_request::<T>(&req)\n", 2)?;
+        writer.generate_close_block(1)?;
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
+
+        writer.generate_impl(Some(&self.class_name()), &prx_name, 0)?;
         for function in &self.functions {
-            function.generate_impl(file)?;  
+            function.generate_impl(writer)?;  
         }
-        writer::write(file, "}\n\n", 0)?;
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
 
-        writer::write(file, &format!("impl {}Prx {{\n", self.class_name()), 0)?;
-        writer::write(file, "pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {\n", 1)?;
-        writer::write(file, "let mut my_proxy = Self {\n", 2)?;
-        writer::write(file, "proxy: proxy\n", 3)?;
-        writer::write(file, "};\n\n", 2)?;
-        writer::write(file, "if !my_proxy.ice_is_a()? {\n", 2)?;
-        writer::write(file, "return Err(Box::new(ProtocolError {}));\n", 3)?;
-        writer::write(file, "}\n\n", 2)?;
-        writer::write(file, "Ok(my_proxy)\n", 2)?;
-        writer::write(file, "}\n}\n\n", 1)
+        writer.generate_impl(None, &prx_name, 0)?;
+        writer.generate_fn(true, None, "checked_cast", vec![String::from("proxy: Proxy")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
+        writer.write("let mut my_proxy = Self {\n", 2)?;
+        writer.write("proxy: proxy\n", 3)?;
+        writer.write("};\n", 2)?;
+        writer.blank_line()?;
+
+        writer.write("if !my_proxy.ice_is_a()? {\n", 2)?;
+        writer.write("return Err(Box::new(ProtocolError {}));\n", 3)?;
+        writer.generate_close_block(2)?;
+        writer.write("Ok(my_proxy)\n", 2)?;
+
+        writer.generate_close_block(1)?;
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
+        Ok(())
     }
 }

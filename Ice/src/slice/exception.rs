@@ -1,7 +1,7 @@
 use crate::slice::types::IceType;
 use crate::slice::writer;
-use std::fs::File;
 use inflector::cases::{snakecase, pascalcase};
+use writer::Writer;
 
 
 #[derive(Clone, Debug)]
@@ -28,44 +28,48 @@ impl Exception {
         pascalcase::to_pascal_case(&self.name)
     }
 
-    pub fn generate(&self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
-        writer::write(file, "#[derive(Debug)]\n", 0)?;
-        writer::write(file, &format!("pub struct {} {{\n", self.class_name()), 0)?;
-
+    pub fn generate(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>> {
+        writer.generate_derive(vec!["Debug"], 0)?;
+        writer.generate_struct_open(&self.class_name(), 0)?;
         for (type_name, var_type) in &self.members {
-            writer::write(file, &format!("pub {}: {},\n", snakecase::to_snake_case(type_name), var_type.rust_type()), 1)?;
+            writer.generate_struct_member(&snakecase::to_snake_case(type_name), &var_type.rust_type(), 1)?;
         }
         if self.extends.is_some() {
-            writer::write(file, &format!("pub extends: {},\n", self.extends.as_ref().unwrap().rust_type()), 1)?;
+            writer.generate_struct_member("extends", &self.extends.as_ref().unwrap().rust_type(), 1)?;
         }
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
 
-        writer::write(file, "}\n\n", 0)?;
 
-        writer::write(file, &format!("impl std::fmt::Display for {} {{\n", self.class_name()), 0)?;
-        writer::write(file, "fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n", 1)?;
-        // TODO: create write for all members
-        writer::write(file, &format!("write!(f, \"{}\")\n", self.class_name()), 2)?;
-        
-        writer::write(file, "}\n}\n\n", 1)?;
+        writer.generate_impl(Some("std::fmt::Display"), &self.class_name(), 0)?;
+        writer.generate_fn(false, None, "fmt", vec![String::from("&self"), String::from("f: &mut std::fmt::Formatter<'_>")], Some("std::fmt::Result"), true, 1)?;
+        writer.write(&format!("write!(f, \"{}\")\n", self.class_name()), 2)?;
+        writer.generate_close_block(1)?;
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
 
-        writer::write(file, &format!("impl std::error::Error for {} {{}}\n\n", self.class_name()), 0)?;
+        writer.generate_impl(Some("std::error::Error"), &self.class_name(), 0)?;
+        writer.generate_close_block(0)?;
+        writer.blank_line()?;
 
         let mut lines = Vec::new();
         for (key, _) in &self.members {
-            lines.push(format!("bytes.extend(self.{}.to_bytes()?);\n", snakecase::to_snake_case(key)));
+            lines.push(format!("bytes.extend(self.{}.to_bytes()?);", snakecase::to_snake_case(key)));
         }
-        writer::write_to_bytes(file, &self.class_name(), lines)?;
+        writer.generate_to_bytes_impl(&self.class_name(), lines, 0)?;
 
         let mut lines = Vec::new();
         for (key, var_type) in &self.members {
-            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", snakecase::to_snake_case(key), var_type.rust_type()));
+            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", snakecase::to_snake_case(key), var_type.rust_type()));
         }
         if self.extends.is_some() {
-            lines.push(format!("extends:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", self.extends.as_ref().unwrap().rust_type()));
+            lines.push(format!("extends:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", self.extends.as_ref().unwrap().rust_type()));
         }
 
-        writer::write_from_bytes_exception(file, &self.class_name(), lines)?;
-
-        Ok(())
+        let pre_read = vec![
+            String::from("let _flag = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;"),
+            String::from("let _type_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;"),
+        ];
+        writer.generate_from_bytes_impl(&self.class_name(), lines, Some(pre_read), 0)
     }
 }

@@ -1,7 +1,7 @@
 use crate::slice::types::IceType;
 use crate::slice::writer;
-use std::fs::File;
 use inflector::cases::snakecase;
+use writer::Writer;
 
 
 #[derive(Clone, Debug)]
@@ -43,49 +43,63 @@ impl Function {
         self.throws = throws;
     }
 
-    pub fn generate_decl(&self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
-        writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
+    pub fn generate_decl(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>> {        
+        let mut arguments = Vec::new();
+        arguments.push(String::from("&mut self"));
         for (key, var_type, out) in &self.arguments {
-            writer::write(
-                file,
-                &format!(
-                    ", {}: {}{}{}",
+            arguments.push(
+                format!(
+                    "{}: {}{}{}",
                     snakecase::to_snake_case(key),                    
                     if var_type.as_ref() | *out { "&" } else { "" },
                     if *out { "mut "} else { "" },
                     var_type.rust_type()
-                ),
-                0
-            )?;
+                )
+            );
         }
-        // TODO: add throws here
-        writer::write(file, &format!(") -> Result<{}, Box<dyn std::error::Error>>;\n", self.return_type.rust_type()), 0)
+        writer.generate_fn(
+            false,
+            None,
+            &self.function_name(),
+            arguments,
+            Some(&format!("Result<{}, Box<dyn std::error::Error>>", self.return_type.rust_type())),
+            false,
+            1
+        )
     }
 
-    pub fn generate_impl(&self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
-        writer::write(file, &format!("fn {}(&mut self", self.function_name()), 1)?;
+    pub fn generate_impl(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>> {
+        let mut arguments = Vec::new();
+        arguments.push(String::from("&mut self"));
         for (key, var_type, out) in &self.arguments {
-            writer::write(
-                file, 
-                &format!(
-                    ", {}: {}{}{}",
-                    snakecase::to_snake_case(key),
+            arguments.push(
+                format!(
+                    "{}: {}{}{}",
+                    snakecase::to_snake_case(key),                    
                     if var_type.as_ref() | *out { "&" } else { "" },
                     if *out { "mut "} else { "" },
                     var_type.rust_type()
-                ),
-                0
-            )?;
+                )
+            );
         }
-        writer::write(file, &format!(") -> Result<{}, Box<dyn std::error::Error>> {{\n", self.return_type.rust_type()), 0)?;
+        writer.generate_fn(
+            false,
+            None,
+            &self.function_name(),
+            arguments,
+            Some(&format!("Result<{}, Box<dyn std::error::Error>>", self.return_type.rust_type())),
+            true,
+            1
+        )?;
 
+        
         let input_args_count = self.arguments.iter().filter(|(_, _, out)| !*out).count();
         let input_args = self.arguments.iter().filter(|(_, _, out)| !*out);
         let output_args_count = self.arguments.iter().filter(|(_, _, out)| *out).count();
         let output_args = self.arguments.iter().filter(|(_, _, out)| *out);
-        writer::write(file, &format!("let {} bytes = Vec::new();\n", if input_args_count > 0 { "mut" } else { "" }), 2)?;
+        writer.write(&format!("let {} bytes = Vec::new();\n", if input_args_count > 0 { "mut" } else { "" }), 2)?;
         for (key, _, _) in input_args.into_iter() {
-            writer::write(file, &format!("bytes.extend({}.to_bytes()?);\n", key), 2)?;
+            writer.write(&format!("bytes.extend({}.to_bytes()?);\n", key), 2)?;
         }
         
         let mut require_reply = output_args_count > 0;
@@ -94,7 +108,6 @@ impl Function {
             _ => require_reply = true
         }
 
-        // TODO: add dispatch for real user error here
         let error_type = match &self.throws {
             Some(throws) => {
                 throws.rust_type()
@@ -104,18 +117,17 @@ impl Function {
             }
         };
         if require_reply {
-            writer::write(file, &format!("let reply = self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
+            writer.write(&format!("let reply = self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
         } else {
-            writer::write(file, &format!("self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
+            writer.write(&format!("self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
         }
-        writer::write(file, ", &Encapsulation::from(bytes))?;\n\n", 0)?;
+        writer.write(", &Encapsulation::from(bytes))?;\n\n", 0)?;
 
         if require_reply {
-            writer::write(file, "let mut read_bytes: i32 = 0;\n", 2)?;
+            writer.write("let mut read_bytes: i32 = 0;\n", 2)?;
             for (key, argtype, _) in output_args.into_iter() {
-                writer::write(
-                    file,
-                    &format!(
+                writer.write(
+            &format!(
                         "*{} = {}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)?;\n",
                         key,
                         argtype.rust_type()
@@ -124,18 +136,17 @@ impl Function {
                 )?;
             }
         }
-
-        // TODO: convert exception
         
         match self.return_type {
             IceType::VoidType => {
-                writer::write(file, "Ok(())\n", 2)?;
+                writer.write("Ok(())\n", 2)?;
             },
             _ => {
-                writer::write(file, &format!("{}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", self.return_type.rust_type()), 2)?;
+                writer.write(&format!("{}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", self.return_type.rust_type()), 2)?;
             }
         };
 
-        writer::write(file, "}\n", 1)
+        writer.generate_close_block(1)?;
+        writer.blank_line()
     }
 }

@@ -3,15 +3,37 @@ use crate::slice::enumeration::Enum;
 use crate::slice::struct_decl::Struct;
 use crate::slice::interface::Interface;
 use crate::slice::exception::Exception;
-use crate::slice::writer;
+use crate::slice::writer::Writer;
 use std::path::Path;
 use std::fs::File;
-use std::io::prelude::*;
 use std::collections::BTreeSet;
 use inflector::cases::snakecase;
 
 use super::types::IceType;
 
+
+struct UseStatements {
+    uses: BTreeSet<String>,
+}
+
+impl UseStatements {
+    fn new() -> UseStatements {
+        UseStatements {
+            uses: BTreeSet::new()
+        }
+    }
+
+    fn use_crate(&mut self, crate_name: &str) {
+        self.uses.insert(String::from(crate_name));
+    }
+
+    fn generate(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>>{
+        for crate_name in &self.uses {
+            writer.generate_use(crate_name, 0)?;
+        }
+        Ok(())
+    }
+}
 
 pub struct Module {
     pub name: String,
@@ -93,76 +115,77 @@ impl Module {
         self.typedefs.push((String::from(id), vartype.clone()));
     }
     
-    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Box<dyn std::error::Error>> {
-        std::fs::create_dir_all(dest)?;
-        let mod_file = &dest.join(Path::new("mod.rs"));
-        let mut file = File::create(mod_file)?;
-
-        file.write_all("// This file has been generated.\n\n".as_bytes())?;
-
-        // build up use statements
-        let mut uses: BTreeSet<String> = BTreeSet::new();
+    fn uses(&self) -> UseStatements {
+        let mut use_statements = UseStatements::new();
         
         if self.has_dict() {
-            uses.insert(String::from("use std::collections::HashMap;\n"));
+            use_statements.use_crate("std::collections::HashMap");
         }
 
         if self.enumerations.len() > 0 || self.structs.len() > 0 || self.interfaces.len() > 0 {
-            uses.insert(String::from("use ice_rs::errors::*;\n"));
+            use_statements.use_crate("ice_rs::errors::*");
         }
+        
         if self.enumerations.len() > 0 {
-            uses.insert(String::from("use num_enum::TryFromPrimitive;\n"));
-            uses.insert(String::from("use std::convert::TryFrom;\n"));
-            uses.insert(String::from("use ice_rs::encoding::IceSize;\n"));
-            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes\n};\n"));
+            use_statements.use_crate("num_enum::TryFromPrimitive");
+            use_statements.use_crate("std::convert::TryFrom");
+            use_statements.use_crate("ice_rs::encoding::IceSize");
+            use_statements.use_crate("ice_rs::encoding::{ToBytes, FromBytes}");
         }
         // TODO: use statements from structs from different modules
         if self.structs.len() > 0 {
-            uses.insert(String::from("use ice_rs::encoding::{\n   ToBytes, FromBytes\n};\n"));
+            use_statements.use_crate("ice_rs::encoding::{ToBytes, FromBytes}");
         }
 
         if self.interfaces.len() > 0 {
-            uses.insert(String::from("use ice_rs::proxy::Proxy;\n"));
-            uses.insert(String::from("use ice_rs::iceobject::IceObject;\n"));
-            uses.insert(String::from("use ice_rs::protocol::{Encapsulation, ReplyData};\n"));
+            use_statements.use_crate("ice_rs::proxy::Proxy");
+            use_statements.use_crate("ice_rs::iceobject::IceObject");
+            use_statements.use_crate("ice_rs::protocol::{Encapsulation, ReplyData}");
         }
 
-        // write use statements
-        for use_statement in &uses {
-            writer::write(&mut file, use_statement, 0)?;
-        }
+        use_statements
+    }
 
+    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::create_dir_all(dest)?;
+        let mod_file = &dest.join(Path::new("mod.rs"));
+
+        let mut writer = Writer::new(File::create(mod_file)?);
+        writer.write("// This file has been generated.", 0)?;
+        writer.blank_line()?;
+
+        // build up use statements
+        self.uses().generate(&mut writer)?;
 
         for sub_module in &self.sub_modules {
             let mod_name = sub_module.snake_name();
-            writer::write(&mut file, &("pub mod ".to_owned() + &mod_name + ";\n"), 0)?;
+            writer.generate_mod(&mod_name, 0)?;
             sub_module.generate(&dest.join(Path::new(&mod_name)), context)?;
         }
-        writer::write(&mut file, "\n", 0)?;
+        writer.blank_line()?;
 
         for (id, vartype) in &self.typedefs {
-            writer::write(&mut file, &format!("type {} = {};\n", id, vartype.rust_type()), 0)?;
+            writer.generate_typedef(id, &vartype.rust_type(), 0)?;
         }
-        writer::write(&mut file, "\n", 0)?;
+        writer.blank_line()?;
        
         for enumeration in &self.enumerations {
-            enumeration.generate(&mut file)?;
+            enumeration.generate(&mut writer)?;
         }
-
-        file.write_all("\n".as_bytes())?;
+        writer.blank_line()?;
 
         for struct_decl in &self.structs {
-            struct_decl.generate(&mut file)?;
+            struct_decl.generate(&mut writer)?;
         }
+        writer.blank_line()?;
 
         for exception in &self.exceptions {
-            exception.generate(&mut file)?;
+            exception.generate(&mut writer)?;
         }
-
-        file.write_all("\n".as_bytes())?;
+        writer.blank_line()?;
 
         for interface in &self.interfaces {
-            interface.generate(&mut file, &self.full_name, context)?;
+            interface.generate(&mut writer, &self.full_name, context)?;
         }
 
         Ok(())
