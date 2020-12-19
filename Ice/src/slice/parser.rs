@@ -266,7 +266,7 @@ impl ParsedObject for Exception {
                         match line.as_rule() {
                             Rule::keyword_extends => { },
                             Rule::identifier => { 
-                                exception.extends = Some(String::from(line.as_str()));
+                                exception.extends = Some(IceType::from(line.as_str())?);
                             },
                             _ => return Err(Box::new(ParsingError {}))
                         }
