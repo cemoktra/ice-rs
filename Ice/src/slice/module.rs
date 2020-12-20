@@ -75,6 +75,12 @@ impl Module {
     }
 
     pub fn add_module(&mut self, module: Module) {
+        for sub_module in &self.sub_modules {
+            if sub_module.full_name == module.full_name {
+                todo!();
+                return;
+            }
+        }
         self.sub_modules.push(module);
     }
 

@@ -288,8 +288,7 @@ impl ParsedObject for Exception {
 }
 
 impl Module {
-    fn parse_file(file: &mut File) -> Result<Module, Box<dyn std::error::Error>> {
-        let mut root = Module::new();
+    fn parse_file(&mut self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
         let mut content = String::new();
         file.read_to_string(&mut content)?;
 
@@ -299,12 +298,24 @@ impl Module {
                 Rule::ice => {
                     for child in pair.into_inner() {
                         match child.as_rule() {
+                            Rule::file_include => {
+                                for item in child.into_inner() {
+                                    match item.as_rule() {
+                                        Rule::keyword_include => {},
+                                        Rule::identifier => {
+                                            let mut include_file = File::open(format!("{}.ice", item.as_str()))?;
+                                            self.parse_file(&mut include_file)?;
+                                        }
+                                        _ => return Err(Box::new(ParsingError {}))   
+                                    }
+                                }
+                            }
                             Rule::module_block => {
                                 let module = Module::parse(child.into_inner())?;
-                                root.add_module(module);
+                                self.add_module(module);
                             },
                             Rule::EOI => {
-                                return Ok(root)
+                                return Ok(())
                             },
                             _ => return Err(Box::new(ParsingError {}))
                         }
@@ -320,7 +331,8 @@ impl Module {
 
 pub fn parse_ice_file(ice_file: &Path) -> Result<Module, Box<dyn std::error::Error>> {
     let mut file = File::open(ice_file)?;
-    let root = Module::parse_file(&mut file)?;
+    let mut root = Module::new();
+    root.parse_file(&mut file)?;
     Ok(root)
 }
 

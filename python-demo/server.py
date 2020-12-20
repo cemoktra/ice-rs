@@ -7,8 +7,11 @@ import signal
 import sys
 import math
 import Ice
+import os
 
-Ice.loadSlice('../Demo.ice')
+filepath = os.path.dirname(os.path.abspath(__file__))
+
+Ice.loadSlice('-I' + filepath + '/.. --all ' + filepath + '/../Demo.ice')
 import RustDemo
 
 

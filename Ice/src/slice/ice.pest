@@ -1,9 +1,9 @@
-ice = { SOI ~ NEWLINE* ~ pragma+ ~ NEWLINE* ~ (module_block)+ ~ EOI }
+ice = { SOI ~ NEWLINE* ~ pragma+ ~ NEWLINE* ~ file_include* ~ NEWLINE* ~ (module_block)+ ~ EOI }
 
 WHITESPACE = _{ " " }
 COMMENT = _{ ("//" ~ (!NEWLINE ~ ANY)*) | ( "/*" ~ ("!*/" ~ ANY)*) }
 
-pragma = _{ "#" ~ (!NEWLINE ~ ANY)* }
+pragma = _{ "#pragma once" }
 
 identifier = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
 typename = { identifier ~ ("<" ~ identifier ~ ("," ~ identifier)* ~ ">")? }
@@ -18,7 +18,9 @@ keyword_throws = { "throws" }
 keyword_exception = { "exception" }
 keyword_extends = { "extends" }
 keyword_optional = { "optional" ~ "(" ~ ASCII_DIGIT ~ ")" }
+keyword_include = { "#include" }
 
+file_include = { keyword_include ~ "<" ~ identifier ~ ".ice" ~ ">" ~ NEWLINE* }
 block_open = { NEWLINE* ~ "{" ~ NEWLINE* }
 block_close = { "}" ~ NEWLINE* }
 
