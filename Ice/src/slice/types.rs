@@ -10,9 +10,10 @@ pub enum IceType {
     LongType,
     FloatType,
     DoubleType,
-    StringType,
+    StringType,    
     SequenceType(Box<IceType>),
     DictType(Box<IceType>, Box<IceType>),
+    Optional(Box<IceType>),
     CustomType(String)
 }
 
@@ -92,6 +93,7 @@ impl IceType {
             IceType::StringType => String::from("String"),
             IceType::SequenceType(type_name) => format!("Vec<{}>", type_name.rust_type()),
             IceType::DictType(key_type, value_type) => format!("HashMap<{}, {}>", key_type.rust_type(), value_type.rust_type()),
+            IceType::Optional(type_name) => format!("Option<{}>", type_name.rust_type()),
             IceType::CustomType(type_name) => format!("{}", type_name),
         }
     }

@@ -17,6 +17,7 @@ keyword_struct = { "struct" }
 keyword_throws = { "throws" }
 keyword_exception = { "exception" }
 keyword_extends = { "extends" }
+keyword_optional = { "optional" ~ "(" ~ ASCII_DIGIT ~ ")" }
 
 block_open = { NEWLINE* ~ "{" ~ NEWLINE* }
 block_close = { "}" ~ NEWLINE* }
@@ -30,11 +31,11 @@ struct_block = { keyword_struct ~ identifier ~ block_open ~ struct_line+ ~ block
 exception_extends = { keyword_extends ~ identifier }
 exception_block = { keyword_exception ~ identifier ~ exception_extends? ~ block_open ~ struct_line* ~ block_close }
 
-fn_return = { identifier }
+fn_return = { keyword_optional? ~ identifier }
 fn_name = { identifier }
 fn_arg_open = { "(" }
-fn_arg = { !keyword_out ~ typename ~ identifier }
-fn_arg_out = { keyword_out ~ typename ~ identifier }
+fn_arg = { !keyword_out ~ keyword_optional? ~ typename ~ identifier }
+fn_arg_out = { keyword_out ~ keyword_optional? ~ typename ~ identifier }
 fn_arg_list = { (fn_arg ~ ("," ~ fn_arg)*)? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*)? }
 fn_arg_close = { ")" }
 fn_throws = { keyword_throws ~ identifier }

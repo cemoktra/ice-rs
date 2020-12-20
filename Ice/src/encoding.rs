@@ -483,6 +483,34 @@ impl FromBytes for Header {
     }
 }
 
+impl<T: ToBytes> ToBytes for Option<T> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let mut bytes = Vec::new();
+        match self {
+            Some(value) => { 
+                bytes.extend((11 as u8).to_bytes()?);
+                bytes.extend(value.to_bytes()?);
+            }
+            None => {}
+        }
+        Ok(bytes)
+    }
+}
+
+impl<T: FromBytes> FromBytes for Option<T> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+        if bytes.len() > 0 {
+            let mut read: i32 = 0;
+            let _flag = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+            let result = Some(T::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?);
+            *read_bytes = *read_bytes + read;
+            Ok(result)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

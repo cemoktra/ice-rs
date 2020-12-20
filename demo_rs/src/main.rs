@@ -46,5 +46,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("baseException: {:?}", demo_prx.base_exception());
     println!("derivedException: {:?}", demo_prx.derived_exception());
 
+    println!("optionalSqare - none: {:?}", demo_prx.optional_square(None));
+    println!("optionalSqare - 2.0: {:?}", demo_prx.optional_square(Some(2.0)));
+
     Ok(())
 }

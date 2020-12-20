@@ -142,7 +142,14 @@ impl Function {
                 writer.write("Ok(())\n", 2)?;
             },
             _ => {
-                writer.write(&format!("{}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", self.return_type.rust_type()), 2)?;
+                match &self.return_type {
+                    IceType::Optional(type_name) => {
+                        writer.write(&format!("Option::<{}>::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", type_name.rust_type()), 2)?;
+                    }
+                    _ => {
+                        writer.write(&format!("{}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", self.return_type.rust_type()), 2)?;
+                    }
+                }                
             }
         };
 

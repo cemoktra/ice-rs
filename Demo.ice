@@ -59,5 +59,8 @@ module RustDemo
         void nativeException();
         void baseException() throws DemoException;
         void derivedException() throws DerivedDemoException;
+
+        // test optional
+        optional(2) double optionalSquare(optional(1) double n);
     }
 }
