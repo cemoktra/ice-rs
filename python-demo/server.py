@@ -52,6 +52,9 @@ class DemoI(RustDemo.Demo):
     def derivedException(self, current):
         raise RustDemo.DerivedDemoException("test", "detail", False)
 
+    def optionalSquare(self, n, current):
+        return n * n if n != Ice.Unset else Ice.Unset
+
 #
 # Ice.initialize returns an initialized Ice communicator,
 # the communicator is destroyed once it goes out of scope.

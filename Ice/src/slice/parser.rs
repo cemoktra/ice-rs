@@ -179,7 +179,22 @@ impl ParsedObject for Function {
         let mut function = Function::empty();
         for child in rule {
             match child.as_rule() {
-                Rule::fn_return => { function.return_type = IceType::from(child.as_str())?; },
+                Rule::fn_return => {
+                    let mut optional = false;
+                    for arg in child.into_inner() {
+                        match arg.as_rule() {
+                            Rule::keyword_optional => { optional = true; }
+                            Rule::identifier => {
+                                if optional {
+                                    function.return_type =IceType::Optional(Box::new(IceType::from(arg.as_str())?));
+                                } else {
+                                    function.return_type = IceType::from(arg.as_str())?;
+                                }
+                            }
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }                    
+                },
                 Rule::fn_name => { function.name = String::from(child.as_str()); },
                 Rule::fn_arg_open => {},
                 Rule::fn_arg_list => {
@@ -187,13 +202,21 @@ impl ParsedObject for Function {
                         match arg.as_rule() {
                             Rule::fn_arg | Rule::fn_arg_out => {
                                 let mut out = false;
+                                let mut optional = false;
                                 let mut typename = IceType::VoidType;
                                 let mut id = "";
                                 for item in arg.into_inner() {                                    
                                     match item.as_rule() {
-                                        Rule::typename => { typename = IceType::from(item.as_str())? },
+                                        Rule::typename => { 
+                                            if optional {
+                                                typename = IceType::Optional(Box::new(IceType::from(item.as_str())?));
+                                            } else {
+                                                typename = IceType::from(item.as_str())?;
+                                            }
+                                        },
                                         Rule::identifier => { id = item.as_str(); },
                                         Rule::keyword_out => { out = true; },
+                                        Rule::keyword_optional => { optional = true; }
                                         _ => return Err(Box::new(ParsingError {}))
                                     }
                                 }
@@ -219,37 +242,6 @@ impl ParsedObject for Function {
             }
         }
         Ok(function)
-    }
-}
-
-impl Module {
-    fn parse_file(file: &mut File) -> Result<Module, Box<dyn std::error::Error>> {
-        let mut root = Module::new();
-        let mut content = String::new();
-        file.read_to_string(&mut content)?;
-
-        let pairs = IceParser::parse(Rule::ice, &content).unwrap();
-        for pair in pairs {
-            match pair.as_rule() {
-                Rule::ice => {
-                    for child in pair.into_inner() {
-                        match child.as_rule() {
-                            Rule::module_block => {
-                                let module = Module::parse(child.into_inner())?;
-                                root.add_module(module);
-                            },
-                            Rule::EOI => {
-                                return Ok(root)
-                            },
-                            _ => return Err(Box::new(ParsingError {}))
-                        }
-                    }
-                },
-                _ => return Err(Box::new(ParsingError {}))
-            };
-        }
-
-        Err(Box::new(ParsingError {}))
     }
 }
 
@@ -292,6 +284,37 @@ impl ParsedObject for Exception {
         }
 
         Ok(exception)
+    }
+}
+
+impl Module {
+    fn parse_file(file: &mut File) -> Result<Module, Box<dyn std::error::Error>> {
+        let mut root = Module::new();
+        let mut content = String::new();
+        file.read_to_string(&mut content)?;
+
+        let pairs = IceParser::parse(Rule::ice, &content).unwrap();
+        for pair in pairs {
+            match pair.as_rule() {
+                Rule::ice => {
+                    for child in pair.into_inner() {
+                        match child.as_rule() {
+                            Rule::module_block => {
+                                let module = Module::parse(child.into_inner())?;
+                                root.add_module(module);
+                            },
+                            Rule::EOI => {
+                                return Ok(root)
+                            },
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }
+                },
+                _ => return Err(Box::new(ParsingError {}))
+            };
+        }
+
+        Err(Box::new(ParsingError {}))
     }
 }
 
