@@ -1,3 +1,4 @@
 [slice]
 input = "../Demo.ice"
 outdir = "./src/gen"
+include_dir = "../"
