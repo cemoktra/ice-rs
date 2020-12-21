@@ -3,7 +3,6 @@ use crate::encoding::{FromBytes, ToBytes};
 
 pub trait IceObject {
     const TYPE_ID: &'static str;
-    const NAME: &'static str;
 
     fn ice_ping(&mut self) -> Result<(), Box<dyn std::error::Error>>
     {

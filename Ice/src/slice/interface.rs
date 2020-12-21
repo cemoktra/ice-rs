@@ -33,7 +33,7 @@ impl Interface {
         self.functions.push(function);
     }
 
-    pub fn generate(&self, writer: &mut Writer, mod_path: &str, context: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn generate(&self, writer: &mut Writer, mod_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         writer.generate_trait_open(&self.class_name(), Some("IceObject"), 0)?;
         for function in &self.functions {
             function.generate_decl(writer)?;  
@@ -43,13 +43,13 @@ impl Interface {
         let prx_name = format!("{}Prx", self.class_name());
         writer.generate_struct_open(&prx_name, 0)?;
         writer.generate_struct_member("proxy", "Proxy", 1)?;
+        writer.generate_struct_member("id", "String", 1)?;
         writer.generate_close_block(0)?;
         writer.blank_line()?;
         
         writer.generate_impl(Some("IceObject"), &prx_name, 0)?;
 
         writer.write(&format!("const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name), 1)?;
-        writer.write(&format!("const NAME: &'static str = \"{}\";\n\n", context), 1)?;
 
         writer.generate_fn(
             false, 
@@ -65,7 +65,7 @@ impl Interface {
             true,
             1
         )?;
-        writer.write(&format!("let req = self.proxy.create_request(&{}::NAME, op, mode, params);\n", prx_name), 2)?;
+        writer.write(&format!("let req = self.proxy.create_request(&self.id, op, mode, params);\n"), 2)?;
         writer.write("self.proxy.make_request::<T>(&req)\n", 2)?;
         writer.generate_close_block(1)?;
         writer.generate_close_block(0)?;
@@ -79,9 +79,10 @@ impl Interface {
         writer.blank_line()?;
 
         writer.generate_impl(None, &prx_name, 0)?;
-        writer.generate_fn(true, None, "checked_cast", vec![String::from("proxy: Proxy")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
+        writer.generate_fn(true, None, "checked_cast", vec![String::from("id: &str"), String::from("proxy: Proxy")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
         writer.write("let mut my_proxy = Self {\n", 2)?;
-        writer.write("proxy: proxy\n", 3)?;
+        writer.write("proxy: proxy,\n", 3)?;
+        writer.write("id: String::from(id)\n", 3)?;
         writer.write("};\n", 2)?;
         writer.blank_line()?;
 

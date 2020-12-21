@@ -1,37 +1,27 @@
-use ice_rs::{errors::ParsingError, slice::{
-    parser
-}};
+use ice_rs::slice::parser;
 use clap::Clap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 
 #[derive(Clap)]
 #[clap(version = "1.0")]
 struct Opts {
     #[clap(short)]
-    include_dir: Option<String>,
-    slice_file: String,
-    out_dir: String
+    include_dir: Option<String>, 
+    out_dir: String,
+    slice_files: Vec<String>
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
-    let slice_path = Path::new(&opts.slice_file);
-    let include_dir = match opts.include_dir.as_ref() {
-        Some(dir) => Path::new(dir),
+    let include_dir = match opts.include_dir {
+        Some(dir) => dir,
         None => {
-            // TODO: extract fome file(s)
-            Path::new(".")
+            let mut inc_dir = PathBuf::from(opts.slice_files.first().unwrap());
+            inc_dir.pop();
+            String::from(inc_dir.to_str().unwrap())
         }
     };
-    let root = parser::parse_ice_file(&slice_path, include_dir)?;
-    root.generate(
-        Path::new(&opts.out_dir),
-        &slice_path
-            .file_stem()
-            .ok_or(Box::new(ParsingError {}))?
-            .to_str()
-            .ok_or(Box::new(ParsingError {}))?
-            .to_lowercase()
-    )
+    let root = parser::parse_ice_files(&opts.slice_files, &include_dir)?;
+    root.generate(Path::new(&opts.out_dir))
 }

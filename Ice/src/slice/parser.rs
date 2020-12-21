@@ -1,5 +1,5 @@
 
-use std::path::Path;
+use std::{collections::BTreeSet, path::Path};
 use std::fs::File;
 use std::io::prelude::*;
 use pest::Parser;
@@ -307,7 +307,7 @@ impl ParsedObject for Exception {
 }
 
 impl Module {
-    fn parse_file(&mut self, file: &mut File, include_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fn parse_file(&mut self, file: &mut File, include_dir: &Path, parsed_files: &mut BTreeSet<String>) -> Result<(), Box<dyn std::error::Error>> {
         let mut content = String::new();
         file.read_to_string(&mut content)?;
 
@@ -323,8 +323,16 @@ impl Module {
                                         Rule::keyword_include => {},
                                         Rule::identifier => {
                                             let include = include_dir.join(format!("{}.ice", item.as_str()));
-                                            let mut include_file = File::open(include)?;
-                                            self.parse_file(&mut include_file, include_dir)?;
+                                            let include_str = String::from(include_dir.join(format!("{}.ice", item.as_str())).to_str().unwrap());
+                                            println!("  parsing include {} ... ", include_str);
+                                            if parsed_files.contains(&include_str) {
+                                                println!("  skip file!");
+                                            } else {
+                                                parsed_files.insert(include_str);
+                                                let mut include_file = File::open(include)?;
+                                                self.parse_file(&mut include_file, include_dir, parsed_files)?;
+                                                println!("  finished include");
+                                            }
                                         }
                                         _ => return Err(Box::new(ParsingError {}))   
                                     }
@@ -348,10 +356,21 @@ impl Module {
     }
 }
 
-pub fn parse_ice_file(ice_file: &Path, include_dir: &Path) -> Result<Module, Box<dyn std::error::Error>> {
-    let mut file = File::open(ice_file)?;
+pub fn parse_ice_files(ice_files: &Vec<String>, include_dir: &str) -> Result<Module, Box<dyn std::error::Error>> {
+    let mut parsed_files = BTreeSet::new();
     let mut root = Module::new();
-    root.parse_file(&mut file, include_dir)?;
+    for item in ice_files {
+        println!("parsing {} ... ", item);
+        if parsed_files.contains(item) {
+            println!("skip file!");
+        } else {
+            parsed_files.insert(item.clone());
+            let mut file = File::open(Path::new(&item))?;
+            root.parse_file(&mut file, Path::new(include_dir), &mut parsed_files)?;
+            println!("finished parsing!");
+        }
+    }
+    
     Ok(root)
 }
 
