@@ -2,15 +2,15 @@ use ice_rs::communicator::Communicator;
 use ice_rs::iceobject::IceObject;
 
 mod gen;
-use crate::gen::rust_demo::{Demo,DemoPrx,Rect};
+use crate::gen::rust_demo::{Demo,DemoPrx,AnotherDemo,AnotherDemoPrx,Rect};
 use std::collections::HashMap;
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let comm = Communicator{};
     let proxy = comm.string_to_proxy("127.0.0.1:10000")?;
+    let mut demo_prx = DemoPrx::checked_cast("demo", proxy)?;
 
-    let mut demo_prx = DemoPrx::checked_cast(proxy)?;
     println!("ice_ping: {:?}", IceObject::ice_ping(&mut demo_prx));
     println!("ice_id: {:?}", IceObject::ice_id(&mut demo_prx));
     println!("ice_ids: {:?}", IceObject::ice_ids(&mut demo_prx));
@@ -48,6 +48,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("optionalSqare - none: {:?}", demo_prx.optional_square(None));
     println!("optionalSqare - 2.0: {:?}", demo_prx.optional_square(Some(2.0)));
+
+    let proxy = comm.string_to_proxy("127.0.0.1:10000")?;
+    let mut another_prx = AnotherDemoPrx::checked_cast("demo2", proxy)?;
+    println!("baseException: {:?}", another_prx.base_exception());
 
     Ok(())
 }

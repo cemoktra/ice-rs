@@ -142,7 +142,7 @@ impl Module {
         use_statements
     }
 
-    pub fn generate(&self, dest: &Path, context: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn generate(&self, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
 
@@ -156,7 +156,7 @@ impl Module {
         for sub_module in &self.sub_modules {
             let mod_name = sub_module.snake_name();
             writer.generate_mod(&mod_name, 0)?;
-            sub_module.generate(&dest.join(Path::new(&mod_name)), context)?;
+            sub_module.generate(&dest.join(Path::new(&mod_name)))?;
         }
         writer.blank_line()?;
 
@@ -181,7 +181,7 @@ impl Module {
         writer.blank_line()?;
 
         for interface in &self.interfaces {
-            interface.generate(&mut writer, &self.full_name, context)?;
+            interface.generate(&mut writer, &self.full_name)?;
         }
 
         Ok(())

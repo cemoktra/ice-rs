@@ -1,4 +1,4 @@
 [slice]
-input = "../Demo.ice"
+input = ["../slice/Demo2.ice", "../slice/Demo.ice"]
 outdir = "./src/gen"
-include_dir = "../"
+include_dir = "../slice"

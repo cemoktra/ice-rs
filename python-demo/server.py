@@ -5,10 +5,19 @@ import math
 import Ice
 
 filepath = os.path.dirname(os.path.abspath(__file__))
+slice_dir = filepath + '/../slice/'
+slice_files = [
+    slice_dir + 'Demo.ice',
+    slice_dir + 'Demo2.ice'
+    
+]
 
-Ice.loadSlice('-I' + filepath + '/.. --all ' + filepath + '/../Demo.ice')
+Ice.loadSlice('-I' + slice_dir + ' --all ' + ' '.join(slice_files))
 import RustDemo
 
+class AnotherDemoI(RustDemo.AnotherDemo):
+    def baseException(self, current):
+        raise RustDemo.DemoException("test 2")
 
 class DemoI(RustDemo.Demo):
     def sayHello(self, current):
@@ -67,5 +76,6 @@ with Ice.initialize(sys.argv) as communicator:
         signal.signal(signal.SIGBREAK, lambda signum, frame: communicator.shutdown())
     adapter = communicator.createObjectAdapterWithEndpoints("Demo", "default -h localhost -p 10000")
     adapter.add(DemoI(), Ice.stringToIdentity("demo"))
+    adapter.add(AnotherDemoI(), Ice.stringToIdentity("demo2"))
     adapter.activate()
     communicator.waitForShutdown()
