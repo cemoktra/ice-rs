@@ -22,24 +22,43 @@ pub trait ParsedObject {
     fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
 }
 
-impl ParsedObject for Module {
-    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
-        let mut module = Module::new();
+pub trait ParsedModule {
+    fn parse(&mut self, rule: &mut Pairs<Rule>) -> Result<(), Box<dyn std::error::Error>> where Self: Sized;
+}
+
+
+impl ParsedModule for Module {
+    fn parse(&mut self, rule: &mut Pairs<Rule>) -> Result<(), Box<dyn std::error::Error>> where Self: Sized {
+        let it = rule.next().ok_or(Box::new(ParsingError {}))?;
+        if it.as_rule() != Rule::keyword_module {
+            return Err(Box::new(ParsingError {}));
+        }
+        let it = rule.next().ok_or(Box::new(ParsingError {}))?;
+        if it.as_rule() != Rule::identifier {
+            return Err(Box::new(ParsingError {}));
+        }
+        let name = it.as_str();
+        let module = match self.sub_modules.iter_mut().find(|f| f.name == name) {
+            Some(module) => {
+                module
+            }
+            None => {
+                let mut new_module = Module::new();
+                new_module.name = String::from(name);
+                new_module.full_name = format!("{}::{}", self.full_name, new_module.name);
+                self.sub_modules.push(new_module);
+                self.sub_modules.last_mut().ok_or(Box::new(ParsingError {}))?
+            }
+        };
+
         for child in rule {
             match child.as_rule() {
-                Rule::keyword_module => {},
-                Rule::identifier => { 
-                    module.name = String::from(child.as_str());
-                    module.full_name = format!("::{}", module.name);
-                },
                 Rule::block_open => {},
                 Rule::any_block => {
                     for block in child.into_inner() {
                         match block.as_rule() {
                             Rule::module_block => {
-                                let mut sub_module = Module::parse(block.into_inner())?;
-                                sub_module.full_name = format!("{}::{}", module.full_name, sub_module.name);
-                                module.add_module(sub_module);
+                                module.parse(&mut block.into_inner())?;
                             },
                             Rule::enum_block => {
                                 let enumeration = Enum::parse(block.into_inner())?;
@@ -79,7 +98,7 @@ impl ParsedObject for Module {
                 _ => return Err(Box::new(ParsingError {}))
             };
         }
-        Ok(module)
+        Ok(())
     }
 }
 
@@ -288,8 +307,7 @@ impl ParsedObject for Exception {
 }
 
 impl Module {
-    fn parse_file(file: &mut File) -> Result<Module, Box<dyn std::error::Error>> {
-        let mut root = Module::new();
+    fn parse_file(&mut self, file: &mut File, include_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         let mut content = String::new();
         file.read_to_string(&mut content)?;
 
@@ -299,12 +317,24 @@ impl Module {
                 Rule::ice => {
                     for child in pair.into_inner() {
                         match child.as_rule() {
+                            Rule::file_include => {
+                                for item in child.into_inner() {
+                                    match item.as_rule() {
+                                        Rule::keyword_include => {},
+                                        Rule::identifier => {
+                                            let include = include_dir.join(format!("{}.ice", item.as_str()));
+                                            let mut include_file = File::open(include)?;
+                                            self.parse_file(&mut include_file, include_dir)?;
+                                        }
+                                        _ => return Err(Box::new(ParsingError {}))   
+                                    }
+                                }
+                            }
                             Rule::module_block => {
-                                let module = Module::parse(child.into_inner())?;
-                                root.add_module(module);
+                                self.parse(&mut child.into_inner())?;
                             },
                             Rule::EOI => {
-                                return Ok(root)
+                                return Ok(())
                             },
                             _ => return Err(Box::new(ParsingError {}))
                         }
@@ -318,9 +348,10 @@ impl Module {
     }
 }
 
-pub fn parse_ice_file(ice_file: &Path) -> Result<Module, Box<dyn std::error::Error>> {
+pub fn parse_ice_file(ice_file: &Path, include_dir: &Path) -> Result<Module, Box<dyn std::error::Error>> {
     let mut file = File::open(ice_file)?;
-    let root = Module::parse_file(&mut file)?;
+    let mut root = Module::new();
+    root.parse_file(&mut file, include_dir)?;
     Ok(root)
 }
 

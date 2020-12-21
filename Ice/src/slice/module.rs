@@ -38,7 +38,7 @@ impl UseStatements {
 pub struct Module {
     pub name: String,
     pub full_name: String,
-    sub_modules: Vec<Module>,
+    pub sub_modules: Vec<Module>,
     enumerations: Vec<Enum>,
     exceptions: Vec<Exception>,
     structs: Vec<Struct>,
@@ -72,10 +72,6 @@ impl Module {
 
     pub fn snake_name(&self) -> String {
         snakecase::to_snake_case(&self.name)
-    }
-
-    pub fn add_module(&mut self, module: Module) {
-        self.sub_modules.push(module);
     }
 
     pub fn add_sub_module(&mut self, name: &str) -> Result<&mut Module, Box<dyn std::error::Error>> {

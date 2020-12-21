@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Exceptions.ice>
+
 module RustDemo
 {
     enum RectType {
@@ -22,14 +24,6 @@ module RustDemo
 
     sequence<double> DoubleSeq;
     dictionary<string, double> TestDict;
-
-    exception DemoException {
-        string message;
-    }
-    exception DerivedDemoException extends DemoException {
-        string detail;
-        bool fatal;
-    }
 
     interface Demo
     {

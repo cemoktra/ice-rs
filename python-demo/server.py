@@ -1,14 +1,12 @@
-#!/usr/bin/env python
-#
-# Copyright (c) ZeroC, Inc. All rights reserved.
-#
-
+import os
 import signal
 import sys
 import math
 import Ice
 
-Ice.loadSlice('../Demo.ice')
+filepath = os.path.dirname(os.path.abspath(__file__))
+
+Ice.loadSlice('-I' + filepath + '/.. --all ' + filepath + '/../Demo.ice')
 import RustDemo
 
 
