@@ -6,7 +6,7 @@ edition = "2018"
 description = "ZeroC Ice for Rust"
 readme = "../README.md"
 homepage = "https://github.com/cemoktra/ice-rs"
-license = "GPL2"
+license = "GPL"
 keywords = ["zeroc", "ice"]
 
 [lib]
