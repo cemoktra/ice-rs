@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-#
-# Copyright (c) ZeroC, Inc. All rights reserved.
-#
-
 import signal
 import sys
 import math
