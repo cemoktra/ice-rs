@@ -1,2 +1,2 @@
 [workspace]
-members = ["Ice", "demo_rs", "slice2rs"]
+members = ["Ice", "demo_rs"]
