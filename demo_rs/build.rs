@@ -1,4 +1,3 @@
-use ice_rs::errors::*;
 use ice_rs::slice::parser;
 use std::path::Path;
 
