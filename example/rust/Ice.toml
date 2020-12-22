@@ -1,4 +1,4 @@
 [slice]
 input = ["../slice/Demo2.ice", "../slice/Demo.ice"]
-outdir = "./src/gen"
+outdir = "./src/client/gen"
 include_dir = "../slice"
