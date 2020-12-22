@@ -1,18 +1,26 @@
 use std::fmt::Display;
-
 use crate::encoding::FromBytes;
 
+/// A `ProtocolError` indicates a problem related to the
+/// ice protocol. It may be unexpected messages or problems
+/// while encoding or decoding objects.
 #[derive(Debug)]
 pub struct ProtocolError {}
 
+/// A `ParsingError` appears when a problem occurs parsing ice
+/// files.
 #[derive(Debug)]
 pub struct ParsingError {}
 
+/// A `RemoteException` is raised when the remote application
+/// raises any error that is not an `UserError`.
 #[derive(Debug)]
 pub struct RemoteException {
     pub cause: String
 }
 
+/// A `UserError` is an error that is defined in ice files.
+/// The generic type will be the defined error struct.
 #[derive(Debug)]
 pub struct UserError<T: std::fmt::Display> {
     pub exception: T

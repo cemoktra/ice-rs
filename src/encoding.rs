@@ -5,15 +5,20 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 
+/// The `IceSize` is a special wrapper around i32
+/// and is encoded in one byte if smaller than 255.
 pub struct IceSize {
     pub size: i32
 }
 
-// TRAITS
+/// The `ToBytes` trait needs to be implemented by all types
+/// that need to be encoded.
 pub trait ToBytes {
     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>;
 }
 
+/// The `FromBytes` trait needs to be implemented by all types
+/// that need to be decoded.
 pub trait FromBytes {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
 }

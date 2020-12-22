@@ -1,6 +1,9 @@
 use crate::{errors::ProtocolError, protocol::{Encapsulation, ReplyData}};
 use crate::encoding::{FromBytes, ToBytes};
 
+/// The `IceObject` trait is a base trait for all
+/// ice interfaces. It implements functions that
+/// are equal to all ice interfaces.
 pub trait IceObject {
     const TYPE_ID: &'static str;
 
