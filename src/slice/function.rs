@@ -1,5 +1,6 @@
 use crate::slice::types::IceType;
 use crate::slice::writer;
+use crate::slice::escape::escape;
 use inflector::cases::snakecase;
 use writer::Writer;
 
@@ -50,7 +51,7 @@ impl Function {
             arguments.push(
                 format!(
                     "{}: {}{}{}",
-                    snakecase::to_snake_case(key),                    
+                    escape(&snakecase::to_snake_case(key)),
                     if var_type.as_ref() | *out { "&" } else { "" },
                     if *out { "mut "} else { "" },
                     var_type.rust_type()
@@ -75,7 +76,7 @@ impl Function {
             arguments.push(
                 format!(
                     "{}: {}{}{}",
-                    snakecase::to_snake_case(key),                    
+                    escape(&snakecase::to_snake_case(key)),  
                     if var_type.as_ref() | *out { "&" } else { "" },
                     if *out { "mut "} else { "" },
                     var_type.rust_type()
@@ -99,7 +100,7 @@ impl Function {
         let output_args = self.arguments.iter().filter(|(_, _, out)| *out);
         writer.write(&format!("let {} bytes = Vec::new();\n", if input_args_count > 0 { "mut" } else { "" }), 2)?;
         for (key, _, _) in input_args.into_iter() {
-            writer.write(&format!("bytes.extend({}.to_bytes()?);\n", key), 2)?;
+            writer.write(&format!("bytes.extend({}.to_bytes()?);\n", escape(&snakecase::to_snake_case(key))), 2)?;
         }
         
         let mut require_reply = output_args_count > 0;
@@ -129,8 +130,8 @@ impl Function {
                 writer.write(
             &format!(
                         "*{} = {}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)?;\n",
-                        key,
-                        argtype.rust_type()
+                        snakecase::to_snake_case(key),
+                        argtype.rust_from()
                     ),
                     2
                 )?;

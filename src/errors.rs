@@ -12,6 +12,11 @@ pub struct ProtocolError {}
 #[derive(Debug)]
 pub struct ParsingError {}
 
+/// A `PropertyError` appears when a requested property is not
+/// existing.
+#[derive(Debug)]
+pub struct PropertyError {}
+
 /// A `RemoteException` is raised when the remote application
 /// raises any error that is not an `UserError`.
 #[derive(Debug)]
@@ -38,6 +43,12 @@ impl std::fmt::Display for ParsingError {
     }
 }
 
+impl std::fmt::Display for PropertyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PropertyError!")
+    }
+}
+
 impl std::fmt::Display for RemoteException {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "RemoteException: {}", self.cause)
@@ -54,6 +65,7 @@ impl<T: Display> std::fmt::Display for UserError<T> {
 impl std::error::Error for ProtocolError {}
 impl std::error::Error for ParsingError {}
 impl std::error::Error for RemoteException {}
+impl std::error::Error for PropertyError {}
 impl<T: std::fmt::Debug + Display + FromBytes> std::error::Error for UserError<T> {}
 
 // dummy needed, but should not get called

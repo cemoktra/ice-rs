@@ -3,19 +3,72 @@ use crate::transport::Transport;
 use crate::tcp::TcpTransport;
 use crate::protocol::{MessageType, ReplyData, RequestData, Identity, Encapsulation};
 use crate::encoding::FromBytes;
+use pest::Parser;
+
+#[derive(Parser)]
+#[grammar = "proxystring.pest"]
+pub struct ProxyParser;
+
 
 pub struct Proxy {
     pub transport: Box<dyn Transport + 'static>,
-    pub request_id: i32
+    pub request_id: i32,
+    pub ident: String
 }
 
 impl Proxy {
-    pub fn new(proxy_string: &str) -> Result<Proxy, Box<dyn std::error::Error>> {
-        // TODO: parse real proxy string
-        Ok(Proxy {
-            transport: Box::new(TcpTransport::new(proxy_string)?),
-            request_id: 0
-        })
+    pub fn new(proxy_string: &str) -> Result<Proxy, Box<dyn std::error::Error>> { 
+        let mut ident = "";
+        let mut protocol = "";
+        let mut host = "";
+        let mut port = "";
+
+        let result = ProxyParser::parse(Rule::proxystring, proxy_string)?.next().unwrap();
+        for pair in result.into_inner() {
+            match pair.as_rule() {
+                Rule::ident => {
+                    // TODO: add proxy options
+                    // https://doc.zeroc.com/ice/3.7/client-side-features/proxies/proxy-and-endpoint-syntax
+                    ident = pair.as_str();
+                }
+                Rule::endpoint => {
+                    for child in pair.into_inner() {                        
+                        match child.as_rule() {
+                            Rule::endpoint_protocol => {
+                                protocol = child.as_str();
+                            }
+                            Rule::endpoint_host | Rule::endpoint_port => {
+                                for item in child.into_inner() {
+                                    match item.as_rule() {
+                                        Rule::hostname | Rule::ip => {
+                                            host = item.as_str();
+                                        }
+                                        Rule::port => {
+                                            port = item.as_str();
+                                        }
+                                        _ => return Err(Box::new(ProtocolError {}))
+                                    };
+                                }
+                            }
+                            _ => return Err(Box::new(ProtocolError {}))
+                        };
+                    }
+                }
+                Rule::EOI => {}
+                _ => return Err(Box::new(ProtocolError {}))
+            };
+        }
+
+        match protocol {
+            "default" | "tcp" => {
+                Ok(Proxy {
+                    transport: Box::new(TcpTransport::new(&(host.to_owned() + ":" + port))?),
+                    request_id: 0,
+                    ident: String::from(ident)
+                })
+            }
+            _ => return Err(Box::new(ProtocolError {}))
+        }
     }
 
     pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation) -> RequestData {

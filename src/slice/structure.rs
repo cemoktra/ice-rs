@@ -1,5 +1,6 @@
 use crate::slice::types::IceType;
 use crate::slice::writer;
+use crate::slice::escape::escape;
 use inflector::cases::{snakecase, pascalcase};
 use writer::Writer;
 
@@ -45,13 +46,13 @@ impl Struct {
 
         let mut lines = Vec::new();
         for (key, _) in &self.members {
-            lines.push(format!("bytes.extend(self.{}.to_bytes()?);", snakecase::to_snake_case(key)));
+            lines.push(format!("bytes.extend(self.{}.to_bytes()?);", &escape(&snakecase::to_snake_case(key))));
         }
         writer.generate_to_bytes_impl(&self.class_name(), lines, 0)?;
 
         let mut lines = Vec::new();
         for (key, var_type) in &self.members {
-            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", snakecase::to_snake_case(key), var_type.rust_type()));
+            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", snakecase::to_snake_case(key), var_type.rust_from()));
         }
         writer.generate_from_bytes_impl(&self.class_name(), lines, None, 0)
     }
