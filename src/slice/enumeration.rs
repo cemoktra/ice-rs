@@ -56,6 +56,12 @@ impl Enum {
         writer.generate_close_block(0)?;
         writer.blank_line()?;
 
+        writer.generate_optional_type(
+            &self.class_name(),
+            4,
+            0
+        )?;
+
         writer.generate_to_bytes_impl(
             &self.class_name(),
             vec![String::from("bytes.extend(IceSize{size: *self as i32}.to_bytes()?);")],

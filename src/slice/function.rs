@@ -1,5 +1,6 @@
 use crate::slice::types::IceType;
 use crate::slice::writer;
+use crate::slice::escape::escape;
 use inflector::cases::snakecase;
 use writer::Writer;
 
@@ -50,7 +51,7 @@ impl Function {
             arguments.push(
                 format!(
                     "{}: {}{}{}",
-                    snakecase::to_snake_case(key),                    
+                    escape(&snakecase::to_snake_case(key)),
                     if var_type.as_ref() | *out { "&" } else { "" },
                     if *out { "mut "} else { "" },
                     var_type.rust_type()
@@ -75,7 +76,7 @@ impl Function {
             arguments.push(
                 format!(
                     "{}: {}{}{}",
-                    snakecase::to_snake_case(key),                    
+                    escape(&snakecase::to_snake_case(key)),  
                     if var_type.as_ref() | *out { "&" } else { "" },
                     if *out { "mut "} else { "" },
                     var_type.rust_type()
@@ -98,8 +99,18 @@ impl Function {
         let output_args_count = self.arguments.iter().filter(|(_, _, out)| *out).count();
         let output_args = self.arguments.iter().filter(|(_, _, out)| *out);
         writer.write(&format!("let {} bytes = Vec::new();\n", if input_args_count > 0 { "mut" } else { "" }), 2)?;
-        for (key, _, _) in input_args.into_iter() {
-            writer.write(&format!("bytes.extend({}.to_bytes()?);\n", key), 2)?;
+        for (key, ice_type, _) in input_args.into_iter() {
+            match ice_type {
+                IceType::Optional(var_type, tag) => {
+                    writer.write(&format!("if let Some(value) = {} {{\n", escape(&snakecase::to_snake_case(key))), 2)?;
+                    writer.write(&format!("bytes.extend(OptionalFlag::new({}, {}::optional_type()).to_bytes()?);\n", tag, var_type.rust_type()), 3)?;
+                    writer.write("bytes.extend(value.to_bytes()?);\n", 3)?;
+                    writer.write("}\n", 2)?;
+                }
+                _ => {
+                    writer.write(&format!("bytes.extend({}.to_bytes()?);\n", escape(&snakecase::to_snake_case(key))), 2)?;
+                }
+            }
         }
         
         let mut require_reply = output_args_count > 0;
@@ -129,8 +140,8 @@ impl Function {
                 writer.write(
             &format!(
                         "*{} = {}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)?;\n",
-                        key,
-                        argtype.rust_type()
+                        snakecase::to_snake_case(key),
+                        argtype.rust_from()
                     ),
                     2
                 )?;
@@ -143,7 +154,7 @@ impl Function {
             },
             _ => {
                 match &self.return_type {
-                    IceType::Optional(type_name) => {
+                    IceType::Optional(type_name, _) => {
                         writer.write(&format!("Option::<{}>::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", type_name.rust_type()), 2)?;
                     }
                     _ => {

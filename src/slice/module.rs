@@ -1,8 +1,9 @@
 use crate::errors::*;
 use crate::slice::enumeration::Enum;
-use crate::slice::struct_decl::Struct;
+use crate::slice::structure::Struct;
 use crate::slice::interface::Interface;
 use crate::slice::exception::Exception;
+use crate::slice::class::Class;
 use crate::slice::writer::Writer;
 use std::path::Path;
 use std::fs::File;
@@ -44,6 +45,7 @@ pub struct Module {
     structs: Vec<Struct>,
     interfaces: Vec<Interface>,
     typedefs: Vec<(String, IceType)>,
+    classes: Vec<Class>
 }
 
 impl Module {
@@ -56,7 +58,8 @@ impl Module {
             structs: vec![],
             interfaces: vec![],
             exceptions: vec![],
-            typedefs: vec![]
+            typedefs: vec![],
+            classes: vec![]
         }
     }
 
@@ -86,7 +89,8 @@ impl Module {
             structs: vec![],
             interfaces: vec![],
             exceptions: vec![],
-            typedefs: vec![]
+            typedefs: vec![],
+            classes: vec![]
         });
         self.sub_modules.last_mut().ok_or(Box::new(ParsingError {}))
     }
@@ -95,8 +99,8 @@ impl Module {
         self.enumerations.push(enumeration);
     }
 
-    pub fn add_struct(&mut self, struct_decl: Struct) {
-        self.structs.push(struct_decl);
+    pub fn add_struct(&mut self, structure: Struct) {
+        self.structs.push(structure);
     }
 
     pub fn add_interface(&mut self, interface: Interface) {
@@ -111,6 +115,10 @@ impl Module {
         self.typedefs.push((String::from(id), vartype.clone()));
     }
     
+    pub fn add_class(&mut self, class: Class) {
+        self.classes.push(class);
+    }
+
     fn uses(&self) -> UseStatements {
         let mut use_statements = UseStatements::new();
         
@@ -125,18 +133,18 @@ impl Module {
         if self.enumerations.len() > 0 {
             use_statements.use_crate("num_enum::TryFromPrimitive");
             use_statements.use_crate("std::convert::TryFrom");
-            use_statements.use_crate("ice_rs::encoding::IceSize");
-            use_statements.use_crate("ice_rs::encoding::{ToBytes, FromBytes}");
+            use_statements.use_crate("ice_rs::encoding::*");
         }
         // TODO: use statements from structs from different modules
         if self.structs.len() > 0 {
-            use_statements.use_crate("ice_rs::encoding::{ToBytes, FromBytes}");
+            use_statements.use_crate("ice_rs::encoding::*");
         }
 
         if self.interfaces.len() > 0 {
+            use_statements.use_crate("ice_rs::encoding::*");
             use_statements.use_crate("ice_rs::proxy::Proxy");
             use_statements.use_crate("ice_rs::iceobject::IceObject");
-            use_statements.use_crate("ice_rs::protocol::{Encapsulation, ReplyData}");
+            use_statements.use_crate("ice_rs::protocol::*");
         }
 
         use_statements
@@ -170,8 +178,13 @@ impl Module {
         }
         writer.blank_line()?;
 
-        for struct_decl in &self.structs {
-            struct_decl.generate(&mut writer)?;
+        for structure in &self.structs {
+            structure.generate(&mut writer)?;
+        }
+        writer.blank_line()?;
+
+        for class in &self.classes {
+            class.generate(&mut writer)?;
         }
         writer.blank_line()?;
 

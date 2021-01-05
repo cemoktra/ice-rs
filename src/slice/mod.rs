@@ -1,9 +1,11 @@
 pub mod module;
 pub mod enumeration;
-pub mod struct_decl;
+pub mod structure;
 pub mod interface;
 pub mod types;
 pub mod writer;
 pub mod function;
 pub mod parser;
 pub mod exception;
+pub mod class;
+pub mod escape;

@@ -1,0 +1,8 @@
+iceconfig = { SOI ~ NEWLINE* ~ property* ~ NEWLINE* ~ EOI }
+
+WHITESPACE = _{ " " }
+COMMENT = _{ ("#" ~ (!NEWLINE ~ ANY)*) }
+
+property_key = @{ (!"=" ~ ANY)* }
+property_value = @{ (!NEWLINE ~ ANY)* }
+property = _{ property_key ~ "="  ~ property_value ~ NEWLINE* }

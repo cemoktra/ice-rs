@@ -43,7 +43,6 @@ impl Interface {
         let prx_name = format!("{}Prx", self.class_name());
         writer.generate_struct_open(&prx_name, 0)?;
         writer.generate_struct_member("proxy", "Proxy", 1)?;
-        writer.generate_struct_member("id", "String", 1)?;
         writer.generate_close_block(0)?;
         writer.blank_line()?;
         
@@ -65,7 +64,8 @@ impl Interface {
             true,
             1
         )?;
-        writer.write(&format!("let req = self.proxy.create_request(&self.id, op, mode, params);\n"), 2)?;
+        writer.write("let id = String::from(self.proxy.ident.clone());\n", 2)?;
+        writer.write(&format!("let req = self.proxy.create_request(&id, op, mode, params);\n"), 2)?;
         writer.write("self.proxy.make_request::<T>(&req)\n", 2)?;
         writer.generate_close_block(1)?;
         writer.generate_close_block(0)?;
@@ -79,10 +79,9 @@ impl Interface {
         writer.blank_line()?;
 
         writer.generate_impl(None, &prx_name, 0)?;
-        writer.generate_fn(true, None, "checked_cast", vec![String::from("id: &str"), String::from("proxy: Proxy")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
+        writer.generate_fn(true, None, "checked_cast", vec![String::from("proxy: Proxy")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
         writer.write("let mut my_proxy = Self {\n", 2)?;
         writer.write("proxy: proxy,\n", 3)?;
-        writer.write("id: String::from(id)\n", 3)?;
         writer.write("};\n", 2)?;
         writer.blank_line()?;
 

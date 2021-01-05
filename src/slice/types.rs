@@ -13,7 +13,7 @@ pub enum IceType {
     StringType,    
     SequenceType(Box<IceType>),
     DictType(Box<IceType>, Box<IceType>),
-    Optional(Box<IceType>),
+    Optional(Box<IceType>, u8),
     CustomType(String)
 }
 
@@ -62,22 +62,6 @@ impl IceType {
             },
             _ => Ok(IceType::CustomType(text.to_string()))
         }
-
-        // match text {
-        //     "void" => Ok(IceType::VoidType),
-        //     "bool" => Ok(IceType::BoolType),
-        //     "byte" => Ok(IceType::ByteType),
-        //     "short" => Ok(IceType::ShortType),
-        //     "int" => Ok(IceType::IntType),
-        //     "long" => Ok(IceType::LongType),
-        //     "float" => Ok(IceType::FloatType),
-        //     "double" => Ok(IceType::DoubleType),
-        //     "string" => Ok(IceType::StringType),
-        //     // TODO: add generic type parsing
-        //     // "sequence" => Ok(IceType::SequenceType()),
-        //     // "dictionary" => Ok(IceType::DictType()),
-        //     _ => Ok(IceType::CustomType(text.to_string()))
-        // }
     }
 
     pub fn rust_type(&self) -> String {
@@ -93,8 +77,15 @@ impl IceType {
             IceType::StringType => String::from("String"),
             IceType::SequenceType(type_name) => format!("Vec<{}>", type_name.rust_type()),
             IceType::DictType(key_type, value_type) => format!("HashMap<{}, {}>", key_type.rust_type(), value_type.rust_type()),
-            IceType::Optional(type_name) => format!("Option<{}>", type_name.rust_type()),
+            IceType::Optional(type_name, _) => format!("Option<{}>", type_name.rust_type()),
             IceType::CustomType(type_name) => format!("{}", type_name),
+        }
+    }
+
+    pub fn rust_from(&self) -> String {
+        match self {
+            IceType::Optional(type_name, _) => format!("Option::<{}>", type_name.rust_type()),
+            _ => self.rust_type(),
         }
     }
 

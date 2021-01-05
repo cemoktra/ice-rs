@@ -1,2 +1,4 @@
 **/target
 /demo_rs/src/gen
+**/demos/**/gen
+.vscode/

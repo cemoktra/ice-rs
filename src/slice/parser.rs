@@ -7,10 +7,11 @@ use pest::iterators::Pairs;
 use crate::errors::*;
 use crate::slice::module::Module;
 use crate::slice::enumeration::Enum;
-use crate::slice::struct_decl::Struct;
+use crate::slice::structure::Struct;
 use crate::slice::interface::Interface;
 use crate::slice::function::Function;
 use crate::slice::exception::Exception;
+use crate::slice::class::Class;
 use crate::slice::types::IceType;
 
 
@@ -67,6 +68,10 @@ impl ParsedModule for Module {
                             Rule::struct_block => {
                                 let structure = Struct::parse(block.into_inner())?;
                                 module.add_struct(structure);
+                            },
+                            Rule::class_block => {
+                                let class = Class::parse(block.into_inner())?;
+                                module.add_class(class);
                             },
                             Rule::interface_block => {
                                 let interface = Interface::parse(block.into_inner())?;
@@ -174,6 +179,61 @@ impl ParsedObject for Struct {
     }
 }
 
+impl ParsedObject for Class {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+        let mut class = Class::empty();
+        for child in rule {            
+            match child.as_rule() {
+                Rule::keyword_class => {},
+                Rule::identifier => { class.name = String::from(child.as_str()); },
+                Rule::block_open => {},
+                Rule::class_line => {
+                    let mut optional = false;
+                    let mut optional_tag = 0;
+                    let mut typename = IceType::VoidType;
+                    let mut id = "";
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            Rule::keyword_optional => {
+                                optional = true;
+                                for line in line.into_inner() {
+                                    match line.as_rule() {
+                                        Rule::optional_tag => { 
+                                            optional_tag = line.as_str().parse()?;
+                                        }
+                                        _ => return Err(Box::new(ParsingError {}))
+                                    }
+                                }
+                            }
+                            Rule::typename => { 
+                                if optional {
+                                    typename = IceType::Optional(Box::new(IceType::from(line.as_str())?), optional_tag);
+                                } else {
+                                    typename = IceType::from(line.as_str())?;
+                                }
+                            },
+                            Rule::identifier => { 
+                                id = line.as_str();
+                            },
+                            Rule::class_line_default => {
+                                // TODO
+                            }
+                            Rule::class_line_end => {
+                                class.add_member(id, typename.clone());
+                            },
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }
+                },
+                Rule::block_close => {},
+                _ => return Err(Box::new(ParsingError {}))
+            }
+        }
+
+        Ok(class)
+    }
+}
+
 impl ParsedObject for Interface {
     fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut interface = Interface::empty();
@@ -200,12 +260,23 @@ impl ParsedObject for Function {
             match child.as_rule() {
                 Rule::fn_return => {
                     let mut optional = false;
+                    let mut optional_tag = 0;
                     for arg in child.into_inner() {
                         match arg.as_rule() {
-                            Rule::keyword_optional => { optional = true; }
+                            Rule::keyword_optional => { 
+                                optional = true;
+                                for line in arg.into_inner() {
+                                    match line.as_rule() {
+                                        Rule::optional_tag => { 
+                                            optional_tag = line.as_str().parse()?;
+                                        }
+                                        _ => return Err(Box::new(ParsingError {}))
+                                    }
+                                }
+                            }
                             Rule::identifier => {
                                 if optional {
-                                    function.return_type =IceType::Optional(Box::new(IceType::from(arg.as_str())?));
+                                    function.return_type = IceType::Optional(Box::new(IceType::from(arg.as_str())?), optional_tag);
                                 } else {
                                     function.return_type = IceType::from(arg.as_str())?;
                                 }
@@ -222,20 +293,31 @@ impl ParsedObject for Function {
                             Rule::fn_arg | Rule::fn_arg_out => {
                                 let mut out = false;
                                 let mut optional = false;
+                                let mut optional_tag = 0;
                                 let mut typename = IceType::VoidType;
                                 let mut id = "";
                                 for item in arg.into_inner() {                                    
                                     match item.as_rule() {
                                         Rule::typename => { 
                                             if optional {
-                                                typename = IceType::Optional(Box::new(IceType::from(item.as_str())?));
+                                                typename = IceType::Optional(Box::new(IceType::from(item.as_str())?), optional_tag);
                                             } else {
                                                 typename = IceType::from(item.as_str())?;
                                             }
                                         },
                                         Rule::identifier => { id = item.as_str(); },
                                         Rule::keyword_out => { out = true; },
-                                        Rule::keyword_optional => { optional = true; }
+                                        Rule::keyword_optional => { 
+                                            optional = true; 
+                                            for line in item.into_inner() {
+                                                match line.as_rule() {
+                                                    Rule::optional_tag => { 
+                                                        optional_tag = line.as_str().parse()?;
+                                                    }
+                                                    _ => return Err(Box::new(ParsingError {}))
+                                                }
+                                            }
+                                        }
                                         _ => return Err(Box::new(ParsingError {}))
                                     }
                                 }
