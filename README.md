@@ -35,3 +35,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     hello_prx.say_hello()
 }
 ```
+
+## Status ##
+The status can be seen in the number of supported [ZeroC Ice Demos](http://github.com/zeroc-ice/ice-demos). 
+
+- minimal
+- optional
+
+
+## Roadmap ##
+The main goal is to support all [ZeroC Ice Demos](http://github.com/zeroc-ice/ice-demos).
