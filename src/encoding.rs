@@ -3,6 +3,8 @@ use crate::errors::*;
 use std::convert::TryInto;
 use std::collections::HashMap;
 use std::hash::Hash;
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 
 
 /// The `IceSize` is a special wrapper around i32
@@ -23,9 +25,98 @@ pub trait FromBytes {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
 }
 
+pub trait OptionalType {
+    fn optional_type() -> u8;
+}
 
+impl OptionalType for i32 {
+    fn optional_type() -> u8 {
+        2
+    }
+}
+
+impl OptionalType for String {
+    fn optional_type() -> u8 {
+        5
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum SliceFlagsTypeEncoding {
+    NoTypeId,
+    StringTypeId,
+    IndexTypeId,
+    CompactTypeId,
+}
+
+#[derive(Debug)]
+pub struct SliceFlags {
+    pub type_id: SliceFlagsTypeEncoding,
+    pub optional_members: bool,
+    pub indirection_table: bool,
+    pub slice_size: bool,
+    pub last_slice: bool,
+}
+
+#[derive(Debug)]
+pub struct OptionalFlag {
+    pub tag: u8,
+    pub r#type: u8
+}
+
+impl OptionalFlag {
+    pub fn new(tag: u8, r#type: u8) -> OptionalFlag {
+        OptionalFlag {
+            tag: tag,
+            r#type: r#type
+        }
+    }
+}
 
 // BASIC ENCODING FUNCTIONS
+impl FromBytes for SliceFlags {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    where Self: Sized {
+        if bytes.len() < 1 {
+            Err(Box::new(ProtocolError {}))   
+        } else {
+            let byte = bytes[0];
+            *read_bytes = *read_bytes + 1;
+            Ok(SliceFlags {
+                type_id: SliceFlagsTypeEncoding::try_from(byte & 0b11)?,
+                optional_members: byte & 0b100 > 0,
+                indirection_table: byte & 0b1000 > 0,
+                slice_size: byte & 0b10000 > 0,
+                last_slice: byte & 0b100000 > 0,
+            })
+        }
+    }
+}
+
+impl ToBytes for OptionalFlag {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let tag_bits = self.r#type & 7;
+        let type_bits = self.tag << 3;
+        Ok(vec![tag_bits | type_bits])
+    }
+}
+
+impl FromBytes for OptionalFlag {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    where Self: Sized {
+        if bytes.len() < 1 {
+            Err(Box::new(ProtocolError {}))   
+        } else {
+            let byte = bytes[0];
+            let tag = byte >> 3;
+            let r#type = byte & 7;
+            *read_bytes = *read_bytes + 1;
+            Ok(OptionalFlag::new(tag, r#type))
+        }
+    }
+}
+
 impl ToBytes for IceSize {
     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         if self.size < 255 {

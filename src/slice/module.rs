@@ -133,21 +133,18 @@ impl Module {
         if self.enumerations.len() > 0 {
             use_statements.use_crate("num_enum::TryFromPrimitive");
             use_statements.use_crate("std::convert::TryFrom");
-            use_statements.use_crate("ice_rs::encoding::IceSize");
-            use_statements.use_crate("ice_rs::encoding::ToBytes");
-            use_statements.use_crate("ice_rs::encoding::FromBytes");
+            use_statements.use_crate("ice_rs::encoding::*");
         }
         // TODO: use statements from structs from different modules
         if self.structs.len() > 0 {
-            use_statements.use_crate("ice_rs::encoding::ToBytes");
-            use_statements.use_crate("ice_rs::encoding::FromBytes");
+            use_statements.use_crate("ice_rs::encoding::*");
         }
 
         if self.interfaces.len() > 0 {
-            use_statements.use_crate("ice_rs::encoding::FromBytes");
+            use_statements.use_crate("ice_rs::encoding::*");
             use_statements.use_crate("ice_rs::proxy::Proxy");
             use_statements.use_crate("ice_rs::iceobject::IceObject");
-            use_statements.use_crate("ice_rs::protocol::{Encapsulation, ReplyData}");
+            use_statements.use_crate("ice_rs::protocol::*");
         }
 
         use_statements

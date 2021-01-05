@@ -40,7 +40,6 @@ impl Exception {
         writer.generate_close_block(0)?;
         writer.blank_line()?;
 
-
         writer.generate_impl(Some("std::fmt::Display"), &self.class_name(), 0)?;
         writer.generate_fn(false, None, "fmt", vec![String::from("&self"), String::from("f: &mut std::fmt::Formatter<'_>")], Some("std::fmt::Result"), true, 1)?;
         writer.write(&format!("write!(f, \"{}\")\n", self.class_name()), 2)?;
@@ -67,8 +66,8 @@ impl Exception {
         }
 
         let pre_read = vec![
-            String::from("let _flag = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;"),
-            String::from("let _type_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;"),
+            String::from("let _flag = SliceFlags::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;"),
+            String::from("let _slice_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;"),
         ];
         writer.generate_from_bytes_impl(&self.class_name(), lines, Some(pre_read), 0)
     }

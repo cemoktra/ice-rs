@@ -21,7 +21,7 @@ keyword_extends = { "extends" }
 keyword_optional = { "optional" ~ "(" ~ optional_tag ~ ")" }
 keyword_include = { "#include" }
 
-optional_tag = { ASCII_DIGIT }
+optional_tag = { ASCII_DIGIT+ }
 file_include = { keyword_include ~ "<" ~ identifier ~ ".ice" ~ ">" ~ NEWLINE* }
 block_open = { NEWLINE* ~ "{" ~ NEWLINE* }
 block_close = { "}" ~ NEWLINE* }

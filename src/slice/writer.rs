@@ -130,7 +130,8 @@ impl Writer {
         }
         self.write("Ok(bytes)\n", indent + 2)?;
         self.generate_close_block(1)?;
-        self.generate_close_block(0)
+        self.generate_close_block(0)?;
+        self.blank_line()
     }
 
     pub fn generate_from_bytes_impl(&mut self, object: &str, lines: Vec<String>, pre_read: Option<Vec<String>>, indent: usize) -> Result<(), Box<dyn std::error::Error>> {
@@ -155,13 +156,23 @@ impl Writer {
         self.write("*read_bytes = *read_bytes + read;\n", indent + 2)?;
         self.write("Ok(obj)\n", indent + 2)?;
         self.generate_close_block(1)?;
-        self.generate_close_block(0)
+        self.generate_close_block(0)?;
+        self.blank_line()
     }
 
     pub fn generate_derive(&mut self, traits: Vec<&str>, indent: usize) -> Result<(), Box<dyn std::error::Error>> {
         self.write("#[derive(", indent)?;
         self.write(&traits.join(", "), indent)?;
         self.write(")]\n", indent)
+    }
+
+    pub fn generate_optional_type(&mut self, object: &str, result: u8, indent: usize) -> Result<(), Box<dyn std::error::Error>> {
+        self.generate_impl(Some("OptionalType"), object, indent)?;
+        self.generate_fn(false, None, "optional_type", vec![], Some("u8"), true, indent + 1)?;
+        self.write(&format!("{}\n", result), indent + 2)?;
+        self.generate_close_block(indent + 1)?;
+        self.generate_close_block(indent)?;
+        self.blank_line()
     }
 }
 
