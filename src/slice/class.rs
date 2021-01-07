@@ -8,6 +8,7 @@ use writer::Writer;
 #[derive(Clone, Debug)]
 pub struct Class {
     pub name: String,
+    pub extends: Option<IceType>,
     members: Vec<(String, IceType)>
 }
 
@@ -15,6 +16,7 @@ impl Class {
     pub fn empty() -> Class {
         Class {
             name: String::from(""),
+            extends: None,
             members: Vec::new()
         }
     }
@@ -22,6 +24,7 @@ impl Class {
     pub fn new(name: &str) -> Class {
         Class {
             name: String::from(name),
+            extends: None,
             members: Vec::new()
         }
     }
@@ -41,6 +44,9 @@ impl Class {
         for (type_name, var_type) in &self.members {
             writer.generate_struct_member(&escape(&snakecase::to_snake_case(type_name)), &var_type.rust_type(), 1)?;
         }
+        if self.extends.is_some() {
+            writer.generate_struct_member("extends", &self.extends.as_ref().unwrap().rust_type(), 1)?;
+        }
         writer.generate_close_block(0)?;
         writer.blank_line()?;
 
@@ -50,20 +56,29 @@ impl Class {
         }
         writer.generate_to_bytes_impl(&self.class_name(), lines, 0)?;
 
-        // let mut lines = Vec::new();
-        // for (key, var_type) in &self.members {
-        //     lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", &escape(&snakecase::to_snake_case(key)), var_type.rust_from()));
-        // }
-        // writer.generate_from_bytes_impl(&self.class_name(), lines, None, 0)
-
         writer.generate_impl(Some("FromBytes"), &self.class_name(), 0)?;
         writer.generate_fn(false, None, "from_bytes", vec![String::from("bytes: &[u8]"), String::from("read_bytes: &mut i32")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
 
         writer.write("let mut read = 0;\n", 2)?;
-        writer.write("let _marker = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
-        writer.write("let _flags = SliceFlags::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
-        writer.write("let _slice_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
+        writer.write("let marker = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
+        writer.write("if marker != 1 && marker != 255 {\n", 2)?;
+        writer.write("read = 0;\n", 3)?;
+        writer.generate_close_block(2)?;
+        writer.write("let flags = SliceFlags::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
+
+        writer.write("match flags.type_id {\n", 2)?;
+        writer.write("SliceFlagsTypeEncoding::StringTypeId => {\n", 3)?;
+        writer.write("let _slice_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 4)?;
         // TODO: check slice name matches class
+        writer.generate_close_block(3)?;
+        writer.write("SliceFlagsTypeEncoding::CompactTypeId => {\n", 3)?;
+        writer.write("todo!()\n", 4)?;
+        writer.generate_close_block(3)?;
+        writer.write("SliceFlagsTypeEncoding::IndexTypeId => {\n", 3)?;
+        writer.write("todo!()\n", 4)?;
+        writer.generate_close_block(3)?;
+        writer.write("SliceFlagsTypeEncoding::NoTypeId => {}\n", 3)?;
+        writer.generate_close_block(2)?;
 
         let mut has_optionals = false;
         for (key, var_type) in &self.members {
@@ -79,8 +94,11 @@ impl Class {
         }
 
         if has_optionals {
-            writer.write("let mut flag_byte = bytes[read as usize..bytes.len()].first().unwrap();\n", 2)?;   
-            writer.write("while *flag_byte != 0xFF as u8 {\n", 2)?;   
+            writer.write("while read < bytes.len() as i32 {\n", 2)?;   
+            writer.write("let flag_byte = bytes[read as usize..bytes.len()].first().unwrap();\n", 3)?;
+            writer.write("if *flag_byte == 0xFF {\n", 3)?;
+            writer.write("break;\n", 4)?;
+            writer.generate_close_block(3)?;            
             writer.write("let flag = OptionalFlag::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 3)?;
             writer.write("match flag.tag {\n", 3)?;
 
@@ -96,17 +114,23 @@ impl Class {
                 };
             }
             writer.write("_ => {\n", 4)?;
-            writer.write("return Err(Box::new(ProtocolError {}));\n", 5)?;
+            writer.write("if flags.last_slice {\n", 5)?;
+            writer.write("return Err(Box::new(ProtocolError {}));\n", 6)?;
+            writer.write("} else {\n", 5)?;
+            writer.write("read = read - 1;\n", 6)?;
+            writer.write("break;\n", 6)?;
+            writer.generate_close_block(5)?;
             writer.generate_close_block(4)?;
-
-            writer.generate_close_block(3)?;
-            writer.write("flag_byte = bytes[read as usize..bytes.len()].first().unwrap();\n", 3)?;
+            writer.generate_close_block(3)?;            
             writer.generate_close_block(2)?;
         }
 
         writer.write("let obj = Self{\n", 2)?;
         for (key, _) in &self.members {
             writer.write(&format!("{}: {},\n", &escape(&snakecase::to_snake_case(key)), &escape(&snakecase::to_snake_case(key))), 3)?;
+        }
+        if self.extends.is_some() {
+            writer.write(&format!("extends: {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", &self.extends.as_ref().unwrap().rust_from()), 3)?;
         }
         writer.write("};\n", 2)?;
         writer.write("*read_bytes = *read_bytes + read;\n", 2)?;
