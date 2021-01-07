@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let ice_files = vec![
       String::from("<path/to/Hello.ice>")
   ];
-  let root_module = parser::parse_ice_files(&input, ".")?;
+  let root_module = parser::parse_ice_files(&input, "<path/to/ice/include/dir>")?;
   root_module.generate(Path::new("./src/gen"))
 }
 ```
