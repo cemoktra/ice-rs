@@ -186,6 +186,17 @@ impl ParsedObject for Class {
             match child.as_rule() {
                 Rule::keyword_class => {},
                 Rule::identifier => { class.name = String::from(child.as_str()); },
+                Rule::extends => {
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            Rule::keyword_extends => { },
+                            Rule::identifier => { 
+                                class.extends = Some(IceType::from(line.as_str())?);
+                            },
+                            _ => return Err(Box::new(ParsingError {}))
+                        }
+                    }
+                }
                 Rule::block_open => {},
                 Rule::class_line => {
                     let mut optional = false;
@@ -354,7 +365,7 @@ impl ParsedObject for Exception {
                 Rule::keyword_exception => {},
                 Rule::identifier => { exception.name = String::from(child.as_str()); },
                 Rule::block_open => {},
-                Rule::exception_extends => {
+                Rule::extends => {
                     for line in child.into_inner() {
                         match line.as_rule() {
                             Rule::keyword_extends => { },
