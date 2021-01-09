@@ -20,6 +20,7 @@ keyword_exception = { "exception" }
 keyword_extends = { "extends" }
 keyword_optional = { "optional" ~ "(" ~ optional_tag ~ ")" }
 keyword_include = { "#include" }
+keyword_idempotent = { "idempotent" }
 
 optional_tag = { ASCII_DIGIT+ }
 file_include = { keyword_include ~ "<" ~ identifier ~ ".ice" ~ ">" ~ NEWLINE* }
@@ -45,7 +46,7 @@ fn_arg_list = { (fn_arg ~ ("," ~ fn_arg)*)? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*
 fn_arg_close = { ")" }
 fn_throws = { keyword_throws ~ identifier }
 function = {
-    fn_return ~ fn_name ~ fn_arg_open ~ fn_arg_list ~ fn_arg_close ~ fn_throws? ~ ";" ~ NEWLINE*
+    keyword_idempotent? ~ fn_return ~ fn_name ~ fn_arg_open ~ fn_arg_list ~ fn_arg_close ~ fn_throws? ~ ";" ~ NEWLINE*
 }
 
 enum_line = { identifier ~ ("=" ~ numeric_value)? }

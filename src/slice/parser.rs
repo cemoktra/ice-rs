@@ -269,6 +269,9 @@ impl ParsedObject for Function {
         let mut function = Function::empty();
         for child in rule {
             match child.as_rule() {
+                Rule::keyword_idempotent => {
+                    function.set_idempotent();
+                }
                 Rule::fn_return => {
                     let mut optional = false;
                     let mut optional_tag = 0;

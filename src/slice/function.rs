@@ -10,7 +10,8 @@ pub struct Function {
     pub name: String,
     pub return_type: IceType,
     arguments: Vec<(String, IceType, bool)>,
-    throws: Option<IceType>
+    throws: Option<IceType>,
+    idempotent: bool
 }
 
 impl Function {
@@ -19,7 +20,8 @@ impl Function {
             name: String::new(),
             return_type: IceType::VoidType,
             arguments: Vec::new(),
-            throws: None
+            throws: None,
+            idempotent: false
         }
     }
 
@@ -28,8 +30,13 @@ impl Function {
             name: String::from(name),
             return_type: return_type,
             arguments: Vec::new(),
-            throws: None
+            throws: None,
+            idempotent: false
         }
+    }
+
+    pub fn set_idempotent(&mut self) {
+        self.idempotent = true;
     }
 
     pub fn function_name(&self) -> String {
@@ -128,9 +135,9 @@ impl Function {
             }
         };
         if require_reply {
-            writer.write(&format!("let reply = self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
+            writer.write(&format!("let reply = self.dispatch::<{}>(&String::from(\"{}\"), {}", error_type, self.name, if self.idempotent { 1 } else { 0 }), 2)?;
         } else {
-            writer.write(&format!("self.dispatch::<{}>(&String::from(\"{}\"), 0", error_type, self.name), 2)?;
+            writer.write(&format!("self.dispatch::<{}>(&String::from(\"{}\"), {}", error_type, self.name, if self.idempotent { 1 } else { 0 }), 2)?;
         }
         writer.write(", &Encapsulation::from(bytes))?;\n\n", 0)?;
 

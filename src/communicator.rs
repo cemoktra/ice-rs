@@ -16,13 +16,13 @@ impl Communicator {
     }
 
     pub fn string_to_proxy(&self, proxy_string: &str) -> Result<Proxy, Box<dyn std::error::Error>> {
-        Proxy::new(proxy_string)
+        Proxy::new(proxy_string, &self.init_data.properties)
     }
 
     pub fn property_to_proxy(&self, property: &str) -> Result<Proxy, Box<dyn std::error::Error>> {
         match self.init_data.properties.get(property) {
             Some(value) => {
-                Proxy::new(value)
+                Proxy::new(value, &self.init_data.properties)
             }
             None => {
                 Err(Box::new(PropertyError {}))
