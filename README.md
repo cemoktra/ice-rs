@@ -42,6 +42,10 @@ The status can be seen in the number of supported [ZeroC Ice Demos](http://githu
 - minimal
 - optional
 
+Supported transports:
+- TCP
+- SSL
+
 
 ## Roadmap ##
 The main goal is to support all [ZeroC Ice Demos](http://github.com/zeroc-ice/ice-demos).
