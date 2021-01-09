@@ -1,6 +1,7 @@
-use crate::errors::*;
+use crate::{errors::*, properties::Properties};
 use crate::transport::Transport;
 use crate::tcp::TcpTransport;
+use crate::ssl::SslTransport;
 use crate::protocol::{MessageType, ReplyData, RequestData, Identity, Encapsulation};
 use crate::encoding::FromBytes;
 use pest::Parser;
@@ -17,7 +18,7 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    pub fn new(proxy_string: &str) -> Result<Proxy, Box<dyn std::error::Error>> { 
+    pub fn new(proxy_string: &str, properties: &Properties) -> Result<Proxy, Box<dyn std::error::Error>> { 
         let mut ident = "";
         let mut protocol = "";
         let mut host = "";
@@ -59,10 +60,18 @@ impl Proxy {
             };
         }
 
+        let address = &(host.to_owned() + ":" + port);
         match protocol {
             "default" | "tcp" => {
                 Ok(Proxy {
-                    transport: Box::new(TcpTransport::new(&(host.to_owned() + ":" + port))?),
+                    transport: Box::new(TcpTransport::new(address)?),
+                    request_id: 0,
+                    ident: String::from(ident)
+                })
+            }
+            "ssl" => {
+                Ok(Proxy {
+                    transport: Box::new(SslTransport::new(address, properties)?),
                     request_id: 0,
                     ident: String::from(ident)
                 })

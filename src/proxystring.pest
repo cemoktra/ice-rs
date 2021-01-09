@@ -14,7 +14,7 @@ ip = {
 port = { ASCII_DIGIT{1,5} }
 
 endpoint = { endpoint_protocol ~ (endpoint_host | endpoint_port)* }
-endpoint_protocol = { "default" | "tcp" }
+endpoint_protocol = { "default" | "tcp" | "ssl" }
 endpoint_host = { "-h" ~ (ip | hostname) }
 endpoint_port = { "-p" ~ port }
 

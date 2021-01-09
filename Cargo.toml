@@ -1,6 +1,6 @@
 [package]
 name = "ice-rs"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["cemoktra <b.schubert82@gmail.com>"]
 edition = "2018"
 description = "ZeroC Ice for Rust"
@@ -24,3 +24,4 @@ pest = "2.0"
 pest_derive = "2.0"
 clap = "3.0.0-beta.2"
 num_enum = "0.5"
+openssl = "0.10"
