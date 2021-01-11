@@ -35,7 +35,7 @@ impl Struct {
     }
 
     pub fn generate(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>> {
-        writer.generate_derive(vec!["Debug", "Copy", "Clone", "PartialEq"], 0)?;
+        writer.generate_derive(vec!["Debug", "Clone", "PartialEq"], 0)?;
         writer.generate_struct_open(&self.class_name(), 0)?;
 
         for (type_name, var_type) in &self.members {
