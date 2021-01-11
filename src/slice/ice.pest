@@ -1,11 +1,14 @@
-ice = { SOI ~ NEWLINE* ~ pragma+ ~ NEWLINE* ~ file_include* ~ NEWLINE* ~ (module_block)+ ~ EOI }
+ice = { SOI ~ NEWLINE* ~ pragma+ ~ NEWLINE* ~ lang_include* ~ NEWLINE* ~ file_include* ~ NEWLINE* ~ (module_block)+ ~ EOI }
 
 WHITESPACE = _{ " " }
 COMMENT = _{ ("//" ~ (!NEWLINE ~ ANY)*) | ( "/*" ~ ("!*/" ~ ANY)*) }
 
 pragma = _{ "#pragma once" }
+lang_include = _{ "[["  ~ (!"]]" ~ ANY)* ~ "]]"}
+lang_define = _{ "["  ~ (!"]" ~ ANY)* ~ "]" ~ NEWLINE?}
 
 identifier = @{ ASCII_ALPHA ~ (ASCII_DIGIT | ASCII_ALPHA | "_")* }
+value = { (!NEWLINE ~ ANY)* }
 typename = { identifier ~ ("<" ~ identifier ~ ("," ~ identifier)* ~ ">")? }
 numeric_value = { (!NEWLINE ~ !ASCII_ALPHA ~ ASCII_DIGIT)+ }
 
@@ -25,11 +28,11 @@ keyword_idempotent = { "idempotent" }
 optional_tag = { ASCII_DIGIT+ }
 file_include = { keyword_include ~ "<" ~ identifier ~ ".ice" ~ ">" ~ NEWLINE* }
 block_open = { NEWLINE* ~ "{" ~ NEWLINE* }
-block_close = { "}" ~ NEWLINE* }
+block_close = { "}" ~ ";"? ~ NEWLINE* }
 
 any_block = { module_block | interface_block | enum_block | struct_block| class_block | exception_block }
 
-module_block = { keyword_module ~ identifier ~ block_open ~ (any_block | typedef)* ~ block_close }
+module_block = { keyword_module ~ identifier ~ block_open ~ (any_block | typedef | lang_define)* ~ block_close }
 interface_block = { keyword_interface ~ identifier ~ block_open ~ (function)* ~ block_close }
 enum_block = { keyword_enum ~ identifier ~ block_open ~ enum_lines ~ block_close }
 struct_block = { keyword_struct ~ identifier ~ block_open ~ struct_line+ ~ block_close }
@@ -42,22 +45,33 @@ fn_name = { identifier }
 fn_arg_open = { "(" }
 fn_arg = { !keyword_out ~ keyword_optional? ~ typename ~ identifier }
 fn_arg_out = { keyword_out ~ keyword_optional? ~ typename ~ identifier }
-fn_arg_list = { (fn_arg ~ ("," ~ fn_arg)*)? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*)? }
+fn_arg_list = {
+    (fn_arg ~ ("," ~ NEWLINE? ~ fn_arg)*)? ~ NEWLINE? ~ (fn_arg_out? ~ ("," ~ fn_arg_out)*)?
+}
 fn_arg_close = { ")" }
 fn_throws = { keyword_throws ~ identifier }
 function = {
-    keyword_idempotent? ~ fn_return ~ fn_name ~ fn_arg_open ~ fn_arg_list ~ fn_arg_close ~ fn_throws? ~ ";" ~ NEWLINE*
+    keyword_idempotent? ~
+    fn_return ~
+    fn_name ~
+    fn_arg_open ~ NEWLINE? ~
+    fn_arg_list ~
+    fn_arg_close ~ NEWLINE? ~
+    fn_throws? ~
+    ";" ~
+    NEWLINE*
 }
 
 enum_line = { identifier ~ ("=" ~ numeric_value)? }
-enum_lines = { enum_line ~ ("," ~ NEWLINE* ~ enum_line)* ~ NEWLINE* }
+enum_lines = { (enum_line ~ ","? ~ NEWLINE?)* }
 
 struct_line_end = { ";" }
-struct_line = { typename ~ identifier ~ struct_line_end ~ NEWLINE* }
+struct_line_default = { "=" ~ value }
+struct_line = { typename ~ identifier ~ (struct_line_default | struct_line_end) ~ NEWLINE* }
 
 class_line_end = { ";" }
-class_line_default = { "=" ~ identifier }
-class_line = { keyword_optional? ~ typename ~ identifier ~ class_line_default? ~ class_line_end ~ NEWLINE* }
+class_line_default = { "=" ~ value }
+class_line = { keyword_optional? ~ typename ~ identifier ~ (class_line_default | class_line_end) ~ NEWLINE* }
 
 
 typedef_end = { ";" }
