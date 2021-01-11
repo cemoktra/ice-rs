@@ -25,6 +25,10 @@ impl Properties {
         return self.properties.get(key)
     }
 
+    pub fn has(&self, key: &str) -> bool {
+        return self.properties.contains_key(key)
+    }
+
     pub fn load(&mut self, config_file: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut content = String::new();
         let mut file = File::open(Path::new(&config_file))?;
@@ -34,7 +38,7 @@ impl Properties {
 
         let config = pairs.next().unwrap();
         if config.as_rule() == Rule::iceconfig {
-            for pair in config.into_inner() {    
+            for pair in config.into_inner() {
                 match pair.as_rule() {
                     Rule::property_key => {
                         key = pair.as_str();

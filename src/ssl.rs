@@ -3,6 +3,7 @@ use std::net::TcpStream;
 use openssl::ssl::{SslConnector, SslMethod, SslStream};
 use openssl::x509::*;
 use openssl::pkcs12::*;
+use openssl::pkey::*;
 use std::fs::File;
 use std::path::Path;
 
@@ -24,9 +25,17 @@ fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     Ok(buffer)
 }
 
-fn read_ca_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
+fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
     let content = read_file(file_path)?;
     match X509::from_pem(&content) {
+        Ok(cert) => Ok(cert),
+        _ => Err(Box::new(ProtocolError{}))
+    }
+}
+
+fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error>> {
+    let content = read_file(file_path)?;
+    match PKey::private_key_from_pem(&content) {
         Ok(cert) => Ok(cert),
         _ => Err(Box::new(ProtocolError{}))
     }
@@ -48,34 +57,58 @@ fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn
 impl SslTransport {
     pub fn new(address: &str, properties: &Properties) -> Result<SslTransport, Box<dyn std::error::Error>>
     {
-        let ssl_dir = Path::new(properties.get("IceSSL.DefaultDir").ok_or(Box::new(PropertyError {}))?);
-        let ca_file = properties.get("IceSSL.CAs").ok_or(Box::new(PropertyError {}))?;
-        let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError {}))?;
-        let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError {}))?;
-        let ca_path = ssl_dir.join(ca_file);
-        let cert_path = ssl_dir.join(cert_file);
-
-        let ca = read_ca_cert(&ca_path)?;
-        let cert = read_pkcs12(&cert_path, password)?;
-
+        let mut builder = SslConnector::builder(SslMethod::tls())?;
         let mut store_builder = store::X509StoreBuilder::new()?;
+        let ssl_dir = Path::new(properties.get("IceSSL.DefaultDir").ok_or(Box::new(PropertyError {}))?);
+
+        // TODO: this needs to support all kind of different key files
+
+        // handle CA
+        let mut ca_file = "";
+        if properties.has("IceSSL.CAs") {
+            ca_file = properties.get("IceSSL.CAs").ok_or(Box::new(PropertyError {}))?;
+        } else if properties.has("IceSSL.CertAuthFile") {
+            ca_file = properties.get("IceSSL.CertAuthFile").ok_or(Box::new(PropertyError {}))?;
+        }
+        let ca_path = ssl_dir.join(ca_file);
+        let ca = read_cert(&ca_path)?;
         store_builder.add_cert(ca)?;
         let store = store_builder.build();
-
-        let mut builder = SslConnector::builder(SslMethod::tls())?;
         builder.set_verify_cert_store(store)?;
-        builder.set_certificate(&cert.cert)?;
-        builder.set_private_key(&cert.pkey)?;
-        
+
+        // hanndle client
+        let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError {}))?;
+        let cert_path = ssl_dir.join(cert_file);
+        if cert_path.extension().unwrap() == "p12" {
+            let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError {}))?;
+            let cert = read_pkcs12(&cert_path, password)?;
+            builder.set_certificate(&cert.cert)?;
+            builder.set_private_key(&cert.pkey)?;
+        } else {
+            let cert = read_cert(&cert_path)?;
+            builder.set_certificate(&cert)?;
+
+            let key_file = properties.get("IceSSL.KeyFile").ok_or(Box::new(PropertyError {}))?;
+            let key_path = ssl_dir.join(key_file);
+            let key = read_key(&key_path)?;
+            builder.set_private_key(&key)?;
+        }
+
+        println!("connect stream to {}", address);
+
         let connector = builder.build();
         let stream = TcpStream::connect(address)?;
         let split = address.split(":").collect::<Vec<&str>>();
         let host = split.first().unwrap();
 
+        println!("connect ssl stream to host {}", host);
+
         let mut transport = SslTransport {
             stream: connector.connect(host, stream)?,
             buffer: vec![0; 4096]
         };
+
+        println!("read validation");
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),
