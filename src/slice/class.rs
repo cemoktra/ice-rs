@@ -9,7 +9,7 @@ use writer::Writer;
 pub struct Class {
     pub name: String,
     pub extends: Option<IceType>,
-    members: Vec<(String, IceType)>
+    pub members: Vec<(String, IceType)>
 }
 
 impl Class {

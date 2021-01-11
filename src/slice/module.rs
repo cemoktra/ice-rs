@@ -1,4 +1,3 @@
-use crate::errors::*;
 use crate::slice::enumeration::Enum;
 use crate::slice::structure::Struct;
 use crate::slice::interface::Interface;
@@ -7,7 +6,9 @@ use crate::slice::class::Class;
 use crate::slice::writer::Writer;
 use std::path::Path;
 use std::fs::File;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
+use std::rc::Rc;
+use std::cell::RefCell;
 use inflector::cases::snakecase;
 
 use super::types::IceType;
@@ -45,21 +46,23 @@ pub struct Module {
     structs: Vec<Struct>,
     interfaces: Vec<Interface>,
     typedefs: Vec<(String, IceType)>,
-    classes: Vec<Class>
+    classes: Vec<Class>,
+    pub type_map: Rc<RefCell<BTreeMap<String, String>>>
 }
 
 impl Module {
-    pub fn new() -> Module {
+    pub fn new(type_map: Rc<RefCell<BTreeMap<String, String>>>) -> Module {
         Module {
-            name: String::from(""),
-            full_name: String::from(""),
+            name: String::new(),
+            full_name: String::new(),
             sub_modules: vec![],
             enumerations: vec![],
             structs: vec![],
             interfaces: vec![],
             exceptions: vec![],
             typedefs: vec![],
-            classes: vec![]
+            classes: vec![],
+            type_map: type_map
         }
     }
 
@@ -75,24 +78,6 @@ impl Module {
 
     pub fn snake_name(&self) -> String {
         snakecase::to_snake_case(&self.name)
-    }
-
-    pub fn add_sub_module(&mut self, name: &str) -> Result<&mut Module, Box<dyn std::error::Error>> {
-        if name.len() == 0 {
-            return Err(Box::new(ParsingError {}));
-        }
-        self.sub_modules.push(Module{
-            name: String::from(name),
-            full_name: format!("{}::{}", self.full_name, name),
-            sub_modules: vec![],
-            enumerations: vec![],
-            structs: vec![],
-            interfaces: vec![],
-            exceptions: vec![],
-            typedefs: vec![],
-            classes: vec![]
-        });
-        self.sub_modules.last_mut().ok_or(Box::new(ParsingError {}))
     }
 
     pub fn add_enum(&mut self, enumeration: Enum) {
@@ -119,7 +104,7 @@ impl Module {
         self.classes.push(class);
     }
 
-    fn uses(&self) -> UseStatements {
+    fn uses(&self, super_mod: &str) -> UseStatements {
         let mut use_statements = UseStatements::new();
         
         if self.has_dict() {
@@ -135,9 +120,40 @@ impl Module {
             use_statements.use_crate("std::convert::TryFrom");
             use_statements.use_crate("ice_rs::encoding::*");
         }
-        // TODO: use statements from structs from different modules
         if self.structs.len() > 0 {
             use_statements.use_crate("ice_rs::encoding::*");
+
+            for item in &self.structs {
+                for (_, var_type) in &item.members {
+                    match var_type {
+                        IceType::CustomType(name) => {
+                            let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
+                            if !use_statement.eq(&self.snake_name()) {
+                                use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        if self.classes.len() > 0 {
+            use_statements.use_crate("ice_rs::encoding::*");
+
+            for item in &self.classes {
+                for (_, var_type) in &item.members {
+                    match var_type {
+                        IceType::CustomType(name) => {
+                            let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
+                            if !use_statement.eq(&self.snake_name()) {
+                                use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         if self.interfaces.len() > 0 {
@@ -145,26 +161,64 @@ impl Module {
             use_statements.use_crate("ice_rs::proxy::Proxy");
             use_statements.use_crate("ice_rs::iceobject::IceObject");
             use_statements.use_crate("ice_rs::protocol::*");
+
+            for item in &self.interfaces {
+                for func in &item.functions {
+                    for (_, var_type, _) in &func.arguments {
+                        match var_type {
+                            IceType::CustomType(name) => {
+                                let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
+                                if !use_statement.eq(&self.snake_name()) {
+                                    use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    match &func.throws {
+                        Some(throws) => {
+                            match throws {
+                                IceType::CustomType(name) => {
+                                    let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
+                                    if !use_statement.eq(&self.snake_name()) {
+                                        use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         use_statements
     }
 
-    pub fn generate(&self, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn generate(&self, dest: &Path, mod_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
-
+        
         let mut writer = Writer::new(File::create(mod_file)?);
         writer.write("// This file has been generated.", 0)?;
         writer.blank_line()?;
 
         // build up use statements
-        self.uses().generate(&mut writer)?;
+        let mut use_path = vec![];
+        if mod_path.len() > 0 {
+            use_path.push(mod_path);
+        }
+        use_path.push(dest.iter().last().unwrap().to_str().unwrap());
+
+        let new_mod_path = use_path.join("::");
+        self.uses(&new_mod_path).generate(&mut writer)?;
 
         for sub_module in &self.sub_modules {
             let mod_name = sub_module.snake_name();
             writer.generate_mod(&mod_name, 0)?;
-            sub_module.generate(&dest.join(Path::new(&mod_name)))?;
+            sub_module.generate(&dest.join(Path::new(&mod_name)), &new_mod_path)?;
         }
         writer.blank_line()?;
 

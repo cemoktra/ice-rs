@@ -8,7 +8,7 @@ use writer::Writer;
 #[derive(Clone, Debug)]
 pub struct Struct {
     pub name: String,
-    members: Vec<(String, IceType)>
+    pub members: Vec<(String, IceType)>
 }
 
 impl Struct {

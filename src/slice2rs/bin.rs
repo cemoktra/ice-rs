@@ -23,5 +23,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     let root = parser::parse_ice_files(&opts.slice_files, &include_dir)?;
-    root.generate(Path::new(&opts.out_dir))
+    root.generate(Path::new(&opts.out_dir), "")
 }

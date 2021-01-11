@@ -1,6 +1,8 @@
-
-use std::{collections::BTreeSet, path::Path};
+use std::collections::{BTreeSet, BTreeMap};
+use std::path::Path;
 use std::fs::File;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::io::prelude::*;
 use pest::Parser;
 use pest::iterators::Pairs;
@@ -44,7 +46,7 @@ impl ParsedModule for Module {
                 module
             }
             None => {
-                let mut new_module = Module::new();
+                let mut new_module = Module::new(Rc::clone(&self.type_map));
                 new_module.name = String::from(name);
                 new_module.full_name = format!("{}::{}", self.full_name, new_module.name);
                 self.sub_modules.push(new_module);
@@ -63,14 +65,17 @@ impl ParsedModule for Module {
                             },
                             Rule::enum_block => {
                                 let enumeration = Enum::parse(block.into_inner())?;
+                                self.type_map.borrow_mut().insert(enumeration.class_name(), module.snake_name());
                                 module.add_enum(enumeration);
                             },
                             Rule::struct_block => {
                                 let structure = Struct::parse(block.into_inner())?;
+                                self.type_map.borrow_mut().insert(structure.class_name(), module.snake_name());
                                 module.add_struct(structure);
                             },
                             Rule::class_block => {
                                 let class = Class::parse(block.into_inner())?;
+                                self.type_map.borrow_mut().insert(class.class_name(), module.snake_name());
                                 module.add_class(class);
                             },
                             Rule::interface_block => {
@@ -162,8 +167,12 @@ impl ParsedObject for Struct {
                     let mut id = "";
                     for line in child.into_inner() {
                         match line.as_rule() {
-                            Rule::typename => { typename = IceType::from(line.as_str())? },
-                            Rule::identifier => { id = line.as_str(); },
+                            Rule::typename => { 
+                                typename = IceType::from(line.as_str())?;
+                            },
+                            Rule::identifier => { 
+                                id = line.as_str();                                
+                            },
                             Rule::struct_line_default => {
                                 // TODO
                                 structure.add_member(id, typename.clone());
@@ -460,7 +469,7 @@ impl Module {
 
 pub fn parse_ice_files(ice_files: &Vec<String>, include_dir: &str) -> Result<Module, Box<dyn std::error::Error>> {
     let mut parsed_files = BTreeSet::new();
-    let mut root = Module::new();
+    let mut root = Module::new(Rc::new(RefCell::new(BTreeMap::new())));
     for item in ice_files {
         println!("parsing {} ... ", item);
         if parsed_files.contains(item) {

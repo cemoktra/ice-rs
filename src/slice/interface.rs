@@ -7,7 +7,7 @@ use writer::Writer;
 #[derive(Clone, Debug)]
 pub struct Interface {
     pub name: String,
-    functions: Vec<Function>
+    pub functions: Vec<Function>
 }
 
 impl Interface {

@@ -35,7 +35,7 @@ impl IceType {
             "#
         )?; 
 
-        let captures = type_re.captures(text).map(|captures| {
+        let captures = type_re.captures(text.trim()).map(|captures| {
             captures
                 .iter() // All the captured groups
                 .skip(1) // Skipping the complete match
@@ -60,7 +60,7 @@ impl IceType {
             Some(["dictionary", x, y]) => {
                 Ok(IceType::DictType(Box::new(IceType::from(x)?), Box::new(IceType::from(y)?)))
             },
-            _ => Ok(IceType::CustomType(text.to_string()))
+            _ => Ok(IceType::CustomType(text.trim().to_string()))
         }
     }
 
