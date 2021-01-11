@@ -39,7 +39,7 @@ impl Struct {
         writer.generate_struct_open(&self.class_name(), 0)?;
 
         for (type_name, var_type) in &self.members {
-            writer.generate_struct_member(&snakecase::to_snake_case(type_name), &var_type.rust_type(), 1)?;
+            writer.generate_struct_member(&escape(&snakecase::to_snake_case(type_name)), &var_type.rust_type(), 1)?;
         }
         writer.generate_close_block(0)?;
         writer.blank_line()?;
@@ -52,7 +52,7 @@ impl Struct {
 
         let mut lines = Vec::new();
         for (key, var_type) in &self.members {
-            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", snakecase::to_snake_case(key), var_type.rust_from()));
+            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", escape(&snakecase::to_snake_case(key)), var_type.rust_from()));
         }
         writer.generate_from_bytes_impl(&self.class_name(), lines, None, 0)
     }
