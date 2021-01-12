@@ -84,6 +84,7 @@ impl ParsedModule for Module {
                             },
                             Rule::exception_block => {
                                 let exception = Exception::parse(block.into_inner())?;
+                                self.type_map.borrow_mut().insert(exception.class_name(), module.snake_name());
                                 module.add_exception(exception);
                             }
                             _ => return Err(Box::new(ParsingError {}))
@@ -98,6 +99,7 @@ impl ParsedModule for Module {
                             Rule::typename => { vartype = IceType::from(item.as_str())? },
                             Rule::identifier => { id = item.as_str(); },
                             Rule::typedef_end => {
+                                self.type_map.borrow_mut().insert(String::from(id), module.snake_name());
                                 module.add_typedef(id, vartype.clone());
                             },
                             _ => return Err(Box::new(ParsingError {}))
@@ -167,11 +169,11 @@ impl ParsedObject for Struct {
                     let mut id = "";
                     for line in child.into_inner() {
                         match line.as_rule() {
-                            Rule::typename => { 
+                            Rule::typename => {
                                 typename = IceType::from(line.as_str())?;
                             },
-                            Rule::identifier => { 
-                                id = line.as_str();                                
+                            Rule::identifier => {
+                                id = line.as_str();
                             },
                             Rule::struct_line_default => {
                                 // TODO

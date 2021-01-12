@@ -94,21 +94,15 @@ impl SslTransport {
             builder.set_private_key(&key)?;
         }
 
-        println!("connect stream to {}", address);
-
         let connector = builder.build();
         let stream = TcpStream::connect(address)?;
         let split = address.split(":").collect::<Vec<&str>>();
         let host = split.first().unwrap();
 
-        println!("connect ssl stream to host {}", host);
-
         let mut transport = SslTransport {
             stream: connector.connect(host, stream)?,
             buffer: vec![0; 4096]
         };
-
-        println!("read validation");
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),

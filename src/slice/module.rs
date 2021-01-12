@@ -99,14 +99,14 @@ impl Module {
     pub fn add_typedef(&mut self, id: &str, vartype: IceType) {
         self.typedefs.push((String::from(id), vartype.clone()));
     }
-    
+
     pub fn add_class(&mut self, class: Class) {
         self.classes.push(class);
     }
 
     fn uses(&self, super_mod: &str) -> UseStatements {
         let mut use_statements = UseStatements::new();
-        
+
         if self.has_dict() {
             use_statements.use_crate("std::collections::HashMap");
         }
@@ -114,12 +114,13 @@ impl Module {
         if self.enumerations.len() > 0 || self.structs.len() > 0 || self.interfaces.len() > 0 {
             use_statements.use_crate("ice_rs::errors::*");
         }
-        
+
         if self.enumerations.len() > 0 {
             use_statements.use_crate("num_enum::TryFromPrimitive");
             use_statements.use_crate("std::convert::TryFrom");
             use_statements.use_crate("ice_rs::encoding::*");
         }
+
         if self.structs.len() > 0 {
             use_statements.use_crate("ice_rs::encoding::*");
 
@@ -129,7 +130,7 @@ impl Module {
                         IceType::CustomType(name) => {
                             let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                             if !use_statement.eq(&self.snake_name()) {
-                                use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                                use_statements.use_crate(&format!("crate::{}::{}::*", super_mod, use_statement));
                             }
                         }
                         _ => {}
@@ -147,7 +148,7 @@ impl Module {
                         IceType::CustomType(name) => {
                             let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                             if !use_statement.eq(&self.snake_name()) {
-                                use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                                use_statements.use_crate(&format!("crate::{}::{}::*", super_mod, use_statement));
                             }
                         }
                         _ => {}
@@ -169,11 +170,11 @@ impl Module {
                             IceType::CustomType(name) => {
                                 let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                                 if !use_statement.eq(&self.snake_name()) {
-                                    use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                                    use_statements.use_crate(&format!("crate::{}::{}::*", super_mod, use_statement));
                                 }
                             }
                             _ => {}
-                        }
+                        };
                     }
 
                     match &func.throws {
@@ -182,14 +183,14 @@ impl Module {
                                 IceType::CustomType(name) => {
                                     let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                                     if !use_statement.eq(&self.snake_name()) {
-                                        use_statements.use_crate(&format!("crate::{}::{}::{}", super_mod, use_statement, name));
+                                        use_statements.use_crate(&format!("crate::{}::{}::*", super_mod, use_statement));
                                     }
                                 }
                                 _ => {}
-                            }
+                            };
                         }
                         _ => {}
-                    }
+                    };
                 }
             }
         }
@@ -200,25 +201,22 @@ impl Module {
     pub fn generate(&self, dest: &Path, mod_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(dest)?;
         let mod_file = &dest.join(Path::new("mod.rs"));
-        
+
         let mut writer = Writer::new(File::create(mod_file)?);
         writer.write("// This file has been generated.", 0)?;
         writer.blank_line()?;
 
         // build up use statements
-        let mut use_path = vec![];
-        if mod_path.len() > 0 {
-            use_path.push(mod_path);
+        let mut use_path = mod_path;
+        if use_path.len() == 0 {
+            use_path = dest.iter().last().unwrap().to_str().unwrap();
         }
-        use_path.push(dest.iter().last().unwrap().to_str().unwrap());
-
-        let new_mod_path = use_path.join("::");
-        self.uses(&new_mod_path).generate(&mut writer)?;
+        self.uses(&use_path).generate(&mut writer)?;
 
         for sub_module in &self.sub_modules {
             let mod_name = sub_module.snake_name();
             writer.generate_mod(&mod_name, 0)?;
-            sub_module.generate(&dest.join(Path::new(&mod_name)), &new_mod_path)?;
+            sub_module.generate(&dest.join(Path::new(&mod_name)), &use_path)?;
         }
         writer.blank_line()?;
 
@@ -226,7 +224,7 @@ impl Module {
             writer.generate_typedef(id, &vartype.rust_type(), 0)?;
         }
         writer.blank_line()?;
-       
+
         for enumeration in &self.enumerations {
             enumeration.generate(&mut writer)?;
         }
