@@ -9,9 +9,10 @@ use writer::Writer;
 pub struct Function {
     pub name: String,
     pub return_type: IceType,
-    pub arguments: Vec<(String, IceType, bool)>,
-    pub throws: Option<IceType>,
-    idempotent: bool
+    arguments: Vec<(String, IceType, bool)>,
+    throws: Option<IceType>,
+    idempotent: bool,
+    return_proxy: bool
 }
 
 impl Function {
@@ -21,7 +22,8 @@ impl Function {
             return_type: IceType::VoidType,
             arguments: Vec::new(),
             throws: None,
-            idempotent: false
+            idempotent: false,
+            return_proxy: false
         }
     }
 
@@ -31,12 +33,17 @@ impl Function {
             return_type: return_type,
             arguments: Vec::new(),
             throws: None,
-            idempotent: false
+            idempotent: false,
+            return_proxy: false
         }
     }
 
     pub fn set_idempotent(&mut self) {
         self.idempotent = true;
+    }
+
+    pub fn set_return_proxy(&mut self) {
+        self.return_proxy = true;
     }
 
     pub fn function_name(&self) -> String {
@@ -70,7 +77,11 @@ impl Function {
             None,
             &self.function_name(),
             arguments,
-            Some(&format!("Result<{}, Box<dyn std::error::Error>>", self.return_type.rust_type())),
+            Some(&format!(
+                "Result<{}{}, Box<dyn std::error::Error>>",
+                self.return_type.rust_type(),
+                if self.return_proxy { "Prx" } else { "" }                
+            )),
             false,
             1
         )
@@ -95,7 +106,11 @@ impl Function {
             None,
             &self.function_name(),
             arguments,
-            Some(&format!("Result<{}, Box<dyn std::error::Error>>", self.return_type.rust_type())),
+            Some(&format!(
+                "Result<{}{}, Box<dyn std::error::Error>>",
+                self.return_type.rust_type(),
+                if self.return_proxy { "Prx" } else { "" }                
+            )),
             true,
             1
         )?;
@@ -163,6 +178,17 @@ impl Function {
                 match &self.return_type {
                     IceType::Optional(type_name, _) => {
                         writer.write(&format!("Option::<{}>::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", type_name.rust_type()), 2)?;
+                    }
+                    IceType::CustomType(_) => {
+                        if self.return_proxy {
+                            writer.write("let proxy_data = ProxyData::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)?;\n", 2)?;
+                            writer.write(&format!("let proxy_string = format!(\"{{}}:{{}} -h {{}} -p {{}}\", proxy_data.id, if proxy_data.secure {{ \"ssl\" }} else {{ \"tcp\" }}, self.proxy.host, self.proxy.port);\n"), 2)?;
+                            writer.write("let comm = ice_rs::communicator::Communicator::new();\n", 2)?;
+                            writer.write("let proxy = comm.string_to_proxy(&proxy_string)?;\n", 2)?;
+                            writer.write("HelloPrx::checked_cast(proxy)", 2)?;
+                        } else {
+                            writer.write(&format!("{}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", self.return_type.rust_type()), 2)?;
+                        }
                     }
                     _ => {
                         writer.write(&format!("{}::from_bytes(&reply.body.data[read_bytes as usize..reply.body.data.len()], &mut read_bytes)\n", self.return_type.rust_type()), 2)?;
