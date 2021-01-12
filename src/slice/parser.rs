@@ -553,7 +553,6 @@ mod test {
         assert!(IceParser::parse(Rule::enum_block, "interface Test {}").is_err());
         assert!(IceParser::parse(Rule::enum_block, "module Test {}").is_err());
         assert!(IceParser::parse(Rule::enum_block, "enum 12Test {}").is_err());
-        assert!(IceParser::parse(Rule::enum_block, "enum Test {}").is_err());
         assert!(IceParser::parse(Rule::enum_block, "enum Test { 123abc }").is_err());
         assert!(IceParser::parse(Rule::enum_block, "enum Test { 123abc = 1 }").is_err());
         assert!(IceParser::parse(Rule::enum_block, "enum Test { First = X }").is_err());
