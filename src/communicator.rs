@@ -25,7 +25,7 @@ impl Communicator {
                 Proxy::new(value, &self.init_data.properties)
             }
             None => {
-                Err(Box::new(PropertyError {}))
+                Err(Box::new(PropertyError::new(property)))
             }
         }
     }

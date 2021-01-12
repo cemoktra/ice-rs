@@ -59,16 +59,16 @@ impl SslTransport {
     {
         let mut builder = SslConnector::builder(SslMethod::tls())?;
         let mut store_builder = store::X509StoreBuilder::new()?;
-        let ssl_dir = Path::new(properties.get("IceSSL.DefaultDir").ok_or(Box::new(PropertyError {}))?);
+        let ssl_dir = Path::new(properties.get("IceSSL.DefaultDir").ok_or(Box::new(PropertyError::new("IceSSL.DefaultDir")))?);
 
         // TODO: this needs to support all kind of different key files
 
         // handle CA
         let mut ca_file = "";
         if properties.has("IceSSL.CAs") {
-            ca_file = properties.get("IceSSL.CAs").ok_or(Box::new(PropertyError {}))?;
+            ca_file = properties.get("IceSSL.CAs").ok_or(Box::new(PropertyError::new("IceSSL.CAs")))?;
         } else if properties.has("IceSSL.CertAuthFile") {
-            ca_file = properties.get("IceSSL.CertAuthFile").ok_or(Box::new(PropertyError {}))?;
+            ca_file = properties.get("IceSSL.CertAuthFile").ok_or(Box::new(PropertyError::new("IceSSL.CertAUthFile")))?;
         }
         let ca_path = ssl_dir.join(ca_file);
         let ca = read_cert(&ca_path)?;
@@ -77,10 +77,10 @@ impl SslTransport {
         builder.set_verify_cert_store(store)?;
 
         // hanndle client
-        let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError {}))?;
+        let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError::new("IceSSL.CertFile")))?;
         let cert_path = ssl_dir.join(cert_file);
         if cert_path.extension().unwrap() == "p12" {
-            let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError {}))?;
+            let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError::new("IceSSL.Password")))?;
             let cert = read_pkcs12(&cert_path, password)?;
             builder.set_certificate(&cert.cert)?;
             builder.set_private_key(&cert.pkey)?;
@@ -88,7 +88,7 @@ impl SslTransport {
             let cert = read_cert(&cert_path)?;
             builder.set_certificate(&cert)?;
 
-            let key_file = properties.get("IceSSL.KeyFile").ok_or(Box::new(PropertyError {}))?;
+            let key_file = properties.get("IceSSL.KeyFile").ok_or(Box::new(PropertyError::new("IceSSL.KeyFile")))?;
             let key_path = ssl_dir.join(key_file);
             let key = read_key(&key_path)?;
             builder.set_private_key(&key)?;

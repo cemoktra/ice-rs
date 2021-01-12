@@ -15,7 +15,17 @@ pub struct ParsingError {}
 /// A `PropertyError` appears when a requested property is not
 /// existing.
 #[derive(Debug)]
-pub struct PropertyError {}
+pub struct PropertyError {
+    missing_key: String
+}
+
+impl PropertyError {
+    pub fn new(missing_key: &str) -> PropertyError {
+        PropertyError {
+            missing_key: String::from(missing_key)
+        }
+    }
+}
 
 /// A `RemoteException` is raised when the remote application
 /// raises any error that is not an `UserError`.
