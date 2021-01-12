@@ -41,6 +41,7 @@ class_block = { keyword_class ~ identifier ~ extends? ~ block_open ~ class_line+
 exception_block = { keyword_exception ~ identifier ~ extends? ~ block_open ~ struct_line* ~ block_close }
 
 fn_return = { keyword_optional? ~ identifier }
+fn_return_proxy = { "*" }
 fn_name = { identifier }
 fn_arg_open = { "(" }
 fn_arg = { !keyword_out ~ keyword_optional? ~ typename ~ identifier }
@@ -53,6 +54,7 @@ fn_throws = { keyword_throws ~ identifier }
 function = {
     keyword_idempotent? ~
     fn_return ~
+    fn_return_proxy? ~
     fn_name ~
     fn_arg_open ~ NEWLINE? ~
     fn_arg_list ~

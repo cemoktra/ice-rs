@@ -289,6 +289,14 @@ impl ParsedObject for Function {
                 Rule::keyword_idempotent => {
                     function.set_idempotent();
                 }
+                Rule::fn_return_proxy => {
+                    match function.return_type {
+                        IceType::CustomType(_) => {
+                            function.set_return_proxy();
+                        }
+                        _ => return Err(Box::new(ParsingError {}))
+                    }
+                }
                 Rule::fn_return => {
                     let mut optional = false;
                     let mut optional_tag = 0;

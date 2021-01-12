@@ -56,6 +56,14 @@ pub struct ReplyData {
     pub body: Encapsulation
 }
 
+#[derive(Debug)]
+pub struct ProxyData {
+    pub id: String,
+    pub facet: Vec<String>,
+    pub mode: u8,
+    pub secure: bool
+}
+
 impl Header {
     pub fn new(message_type: u8, message_size: i32) -> Header {
         Header {

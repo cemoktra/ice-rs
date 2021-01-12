@@ -14,7 +14,9 @@ pub struct ProxyParser;
 pub struct Proxy {
     pub transport: Box<dyn Transport + 'static>,
     pub request_id: i32,
-    pub ident: String
+    pub ident: String,
+    pub host: String,
+    pub port: i32
 }
 
 impl Proxy {
@@ -66,14 +68,19 @@ impl Proxy {
                 Ok(Proxy {
                     transport: Box::new(TcpTransport::new(address)?),
                     request_id: 0,
-                    ident: String::from(ident)
+                    ident: String::from(ident),
+                    host: String::from(host),
+                    port: port.parse()?
+
                 })
             }
             "ssl" => {
                 Ok(Proxy {
                     transport: Box::new(SslTransport::new(address, properties)?),
                     request_id: 0,
-                    ident: String::from(ident)
+                    ident: String::from(ident),
+                    host: String::from(host),
+                    port: port.parse()?
                 })
             }
             _ => return Err(Box::new(ProtocolError {}))

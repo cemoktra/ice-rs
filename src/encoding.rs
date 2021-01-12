@@ -1,4 +1,4 @@
-use crate::protocol::{Encapsulation, Header, Identity, RequestData, ReplyData};
+use crate::protocol::{Encapsulation, Header, Identity, ProxyData, ReplyData, RequestData};
 use crate::errors::*;
 use std::convert::TryInto;
 use std::collections::HashMap;
@@ -584,6 +584,7 @@ impl<T: ToBytes> ToBytes for Option<T> {
         let mut bytes = Vec::new();
         match self {
             Some(value) => { 
+                // TODO: use optional flag here
                 bytes.extend((11 as u8).to_bytes()?);
                 bytes.extend(value.to_bytes()?);
             }
@@ -606,6 +607,35 @@ impl<T: FromBytes> FromBytes for Option<T> {
         }
     }
 }
+
+impl ToBytes for ProxyData {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let mut bytes = Vec::new();
+
+        bytes.extend(self.id.to_bytes()?);
+        bytes.extend(self.facet.to_bytes()?);
+        bytes.extend(self.mode.to_bytes()?);
+        bytes.extend(self.secure.to_bytes()?);
+
+        Ok(bytes)
+    }
+}
+
+impl FromBytes for ProxyData {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    where Self: Sized {
+        let mut read: i32 = 0;
+        let result = ProxyData {
+            id: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            facet: Vec::<String>::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            mode: u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            secure: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+        };
+        *read_bytes = *read_bytes + read;
+        Ok(result)
+    }
+}
+
 
 #[cfg(test)]
 mod test {
