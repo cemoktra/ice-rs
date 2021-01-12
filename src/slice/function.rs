@@ -9,8 +9,8 @@ use writer::Writer;
 pub struct Function {
     pub name: String,
     pub return_type: IceType,
-    arguments: Vec<(String, IceType, bool)>,
-    throws: Option<IceType>,
+    pub arguments: Vec<(String, IceType, bool)>,
+    pub throws: Option<IceType>,
     idempotent: bool,
     return_proxy: bool
 }
