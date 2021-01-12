@@ -205,6 +205,9 @@ impl Module {
         let mut writer = Writer::new(File::create(mod_file)?);
         writer.write("// This file has been generated.", 0)?;
         writer.blank_line()?;
+        writer.write("#[allow(dead_code)]", 0)?;
+        writer.write("#[allow(unused_imports)]", 0)?;
+        writer.blank_line()?;
 
         // build up use statements
         let mut use_path = mod_path;
