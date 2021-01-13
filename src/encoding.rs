@@ -79,7 +79,7 @@ impl FromBytes for SliceFlags {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         if bytes.len() < 1 {
-            Err(Box::new(ProtocolError {}))   
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read SliceFlags")));
         } else {
             let byte = bytes[0];
             *read_bytes = *read_bytes + 1;
@@ -106,7 +106,7 @@ impl FromBytes for OptionalFlag {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         if bytes.len() < 1 {
-            Err(Box::new(ProtocolError {}))   
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read OptionalFlag")));
         } else {
             let byte = bytes[0];
             let tag = byte >> 3;
@@ -133,11 +133,11 @@ impl FromBytes for IceSize {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         if bytes.len() < 1 {
-            Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read IceSize")));
         }   
         else if bytes[0] == 255 {
             if bytes.len() < 5 {
-                Err(Box::new(ProtocolError {}))
+                return Err(Box::new(ProtocolError::new("Not enough bytes to read IceSize")));
             } else {
                 *read_bytes = 1;
                 Ok(IceSize {
@@ -260,14 +260,14 @@ impl FromBytes for i16 {
     where Self: Sized {
         let size = std::mem::size_of::<i16>();
         if bytes.len() < size {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read i16")));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(i16::from_le_bytes(barray))
             },
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new("Error reading i16")))
         }
     }
 }
@@ -283,14 +283,14 @@ impl FromBytes for i32 {
     where Self: Sized {
         let size = std::mem::size_of::<i32>();
         if bytes.len() < size {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read i32")));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(i32::from_le_bytes(barray))
             },
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new("Error reading i32")))
         }
     }
 }
@@ -306,14 +306,14 @@ impl FromBytes for i64 {
     where Self: Sized {
         let size = std::mem::size_of::<i64>();
         if bytes.len() < size {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read i64")));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(i64::from_le_bytes(barray))
             },
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new("Error reading i64")))
         }
     }
 }
@@ -329,14 +329,14 @@ impl FromBytes for f32 {
     where Self: Sized {
         let size = std::mem::size_of::<f32>();
         if bytes.len() < size {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read f32")));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(f32::from_le_bytes(barray))
             },
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new("Error reading f32")))
         }
     }
 }
@@ -352,14 +352,14 @@ impl FromBytes for f64 {
     where Self: Sized {
         let size = std::mem::size_of::<f64>();
         if bytes.len() < size {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read f64")));
         }
         match bytes[0..size].try_into() {
             Ok(barray) => {
                 *read_bytes = *read_bytes + size as i32;
                 Ok(f64::from_le_bytes(barray))
             },
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new("Error reading f64")))
         }
     }
 }
@@ -374,7 +374,7 @@ impl FromBytes for bool {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
     where Self: Sized {
         if bytes.len() < 1 {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read bool")));
         }
         *read_bytes = *read_bytes + 1;
         Ok(bytes[0] != 0)
@@ -424,7 +424,7 @@ impl FromBytes for Encapsulation {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read: i32 = 0;
         if bytes.len() < 6 {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read Encapsulation")));
         }
 
         let size = i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -499,7 +499,7 @@ impl FromBytes for ReplyData {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read: i32 = 0;
         if bytes.len() < 11 {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read ReplyData")));
         }
 
         let request_id = i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -524,7 +524,7 @@ impl FromBytes for ReplyData {
                     }
                 ))
             }
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new(&format!("Unsupported ReplyData status: {}", status))))
         }
     }
 }
@@ -549,12 +549,12 @@ impl ToBytes for Header {
 impl FromBytes for Header {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         if bytes.len() < 14 {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new("Not enough bytes to read Header")));
         }
 
         let magic = String::from_utf8(bytes[0..4].to_vec())?;
         if magic != "IceP" {
-            return Err(Box::new(ProtocolError {}));
+            return Err(Box::new(ProtocolError::new(&format!("Wrong magic! Expected IceP but found {}", magic))));
         }        
         let mut read: i32 = 4;
         let protocol_major = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;

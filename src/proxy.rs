@@ -49,16 +49,16 @@ impl Proxy {
                                         Rule::port => {
                                             port = item.as_str();
                                         }
-                                        _ => return Err(Box::new(ProtocolError {}))
+                                        _ => return Err(Box::new(ParsingError::new(&format!("Unexpected proxy string rule: {:?}", item.as_rule()))))
                                     };
                                 }
                             }
-                            _ => return Err(Box::new(ProtocolError {}))
+                            _ => return Err(Box::new(ParsingError::new(&format!("Unexpected proxy string rule: {:?}", child.as_rule()))))
                         };
                     }
                 }
                 Rule::EOI => {}
-                _ => return Err(Box::new(ProtocolError {}))
+                _ => return Err(Box::new(ParsingError::new("Unexpected rule while parsing proxy string.")))
             };
         }
 
@@ -83,7 +83,7 @@ impl Proxy {
                     port: port.parse()?
                 })
             }
-            _ => return Err(Box::new(ProtocolError {}))
+            _ => return Err(Box::new(ProtocolError::new(&format!("Unsupported protocol: {}", protocol))))
         }
     }
 
@@ -119,7 +119,7 @@ impl Proxy {
                     _ => Ok(reply)
                 }
             },
-            _ => Err(Box::new(ProtocolError {}))
+            _ => Err(Box::new(ProtocolError::new(&format!("Unsupported message type: {:?}", reply))))
         }
     }
 }

@@ -5,17 +5,47 @@ use crate::encoding::FromBytes;
 /// ice protocol. It may be unexpected messages or problems
 /// while encoding or decoding objects.
 #[derive(Debug)]
-pub struct ProtocolError {}
+pub struct ProtocolError {
+    detail: String
+}
+
+impl ProtocolError {
+    pub fn new(detail: &str) -> ProtocolError {
+        ProtocolError {
+            detail: String::from(detail)
+        }
+    }
+}
 
 /// A `ParsingError` appears when a problem occurs parsing ice
 /// files.
 #[derive(Debug)]
-pub struct ParsingError {}
+pub struct ParsingError {
+    detail: String
+}
+
+impl ParsingError {
+    pub fn new(detail: &str) -> ParsingError {
+        ParsingError {
+            detail: String::from(detail)
+        }
+    }
+}
 
 /// A `PropertyError` appears when a requested property is not
 /// existing.
 #[derive(Debug)]
-pub struct PropertyError {}
+pub struct PropertyError {
+    missing_key: String
+}
+
+impl PropertyError {
+    pub fn new(missing_key: &str) -> PropertyError {
+        PropertyError {
+            missing_key: String::from(missing_key)
+        }
+    }
+}
 
 /// A `RemoteException` is raised when the remote application
 /// raises any error that is not an `UserError`.
@@ -69,9 +99,8 @@ impl std::error::Error for PropertyError {}
 impl<T: std::fmt::Debug + Display + FromBytes> std::error::Error for UserError<T> {}
 
 // dummy needed, but should not get called
-// consider making it panic
 impl FromBytes for ProtocolError {
     fn from_bytes(_bytes: &[u8], _read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
-        Ok(ProtocolError {})
+        panic!("Unexpeced.")
     }
 }

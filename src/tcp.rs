@@ -21,7 +21,7 @@ impl TcpTransport {
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError{}))
+            _ => Err(Box::new(ProtocolError::new("TCP: Failed to validate new connection")))
         }
     }
 }
@@ -39,7 +39,7 @@ impl Transport for TcpTransport {
                 Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
-            _ => Err(Box::new(ProtocolError{}))
+            _ => Err(Box::new(ProtocolError::new(&format!("TCP: Unsuppored reply message type: {}", header.message_type))))
         }
     }
 
@@ -49,7 +49,7 @@ impl Transport for TcpTransport {
         let bytes = header.to_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new("TCP: Could not validate connection")))
         }
 
         Ok(())
@@ -64,7 +64,7 @@ impl Transport for TcpTransport {
 
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new(&format!("TCP: Error writing request {}", request.request_id))))
         }
         Ok(())
     }

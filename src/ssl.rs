@@ -29,7 +29,7 @@ fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
     let content = read_file(file_path)?;
     match X509::from_pem(&content) {
         Ok(cert) => Ok(cert),
-        _ => Err(Box::new(ProtocolError{}))
+        _ => Err(Box::new(ProtocolError::new("SSL: Could not read certificate")))
     }
 }
 
@@ -37,7 +37,7 @@ fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error
     let content = read_file(file_path)?;
     match PKey::private_key_from_pem(&content) {
         Ok(cert) => Ok(cert),
-        _ => Err(Box::new(ProtocolError{}))
+        _ => Err(Box::new(ProtocolError::new("SSL: Could not read private key")))
     }
 }
 
@@ -47,10 +47,10 @@ fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn
         Ok(pkcs12) => {
             match pkcs12.parse(password) {
                 Ok(parsed) => Ok(parsed),
-                _ => Err(Box::new(ProtocolError{}))
+                _ => Err(Box::new(ProtocolError::new("SSL: Could not parse pkcs12")))
             }
         },
-        _ => Err(Box::new(ProtocolError{}))
+        _ => Err(Box::new(ProtocolError::new("SSL: Could not read pkcs12")))
     }
 }
 
@@ -59,16 +59,16 @@ impl SslTransport {
     {
         let mut builder = SslConnector::builder(SslMethod::tls())?;
         let mut store_builder = store::X509StoreBuilder::new()?;
-        let ssl_dir = Path::new(properties.get("IceSSL.DefaultDir").ok_or(Box::new(PropertyError {}))?);
+        let ssl_dir = Path::new(properties.get("IceSSL.DefaultDir").ok_or(Box::new(PropertyError::new("IceSSL.DefaultDir")))?);
 
         // TODO: this needs to support all kind of different key files
 
         // handle CA
         let mut ca_file = "";
         if properties.has("IceSSL.CAs") {
-            ca_file = properties.get("IceSSL.CAs").ok_or(Box::new(PropertyError {}))?;
+            ca_file = properties.get("IceSSL.CAs").ok_or(Box::new(PropertyError::new("IceSSL.CAs")))?;
         } else if properties.has("IceSSL.CertAuthFile") {
-            ca_file = properties.get("IceSSL.CertAuthFile").ok_or(Box::new(PropertyError {}))?;
+            ca_file = properties.get("IceSSL.CertAuthFile").ok_or(Box::new(PropertyError::new("IceSSL.CertAUthFile")))?;
         }
         let ca_path = ssl_dir.join(ca_file);
         let ca = read_cert(&ca_path)?;
@@ -77,10 +77,10 @@ impl SslTransport {
         builder.set_verify_cert_store(store)?;
 
         // hanndle client
-        let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError {}))?;
+        let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError::new("IceSSL.CertFile")))?;
         let cert_path = ssl_dir.join(cert_file);
         if cert_path.extension().unwrap() == "p12" {
-            let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError {}))?;
+            let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError::new("IceSSL.Password")))?;
             let cert = read_pkcs12(&cert_path, password)?;
             builder.set_certificate(&cert.cert)?;
             builder.set_private_key(&cert.pkey)?;
@@ -88,7 +88,7 @@ impl SslTransport {
             let cert = read_cert(&cert_path)?;
             builder.set_certificate(&cert)?;
 
-            let key_file = properties.get("IceSSL.KeyFile").ok_or(Box::new(PropertyError {}))?;
+            let key_file = properties.get("IceSSL.KeyFile").ok_or(Box::new(PropertyError::new("IceSSL.KeyFile")))?;
             let key_path = ssl_dir.join(key_file);
             let key = read_key(&key_path)?;
             builder.set_private_key(&key)?;
@@ -106,7 +106,7 @@ impl SslTransport {
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError{}))
+            _ => Err(Box::new(ProtocolError::new("SSL: Failed to validate new connection")))
         }
     }
 }
@@ -124,7 +124,7 @@ impl Transport for SslTransport {
                 Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
-            _ => Err(Box::new(ProtocolError{}))
+            _ => Err(Box::new(ProtocolError::new(&format!("SSL: Unsuppored reply message type: {}", header.message_type))))
         }
     }
 
@@ -134,7 +134,7 @@ impl Transport for SslTransport {
         let bytes = header.to_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new("SSL: Could not validate connection")))
         }
 
         Ok(())
@@ -149,7 +149,7 @@ impl Transport for SslTransport {
 
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new(&format!("SSL: Error writing request {}", request.request_id))))
         }
         Ok(())
     }
