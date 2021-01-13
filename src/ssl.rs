@@ -29,7 +29,7 @@ fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
     let content = read_file(file_path)?;
     match X509::from_pem(&content) {
         Ok(cert) => Ok(cert),
-        _ => Err(Box::new(ProtocolError{}))
+        _ => Err(Box::new(ProtocolError::new("SSL: Could not read certificate")))
     }
 }
 
@@ -37,7 +37,7 @@ fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error
     let content = read_file(file_path)?;
     match PKey::private_key_from_pem(&content) {
         Ok(cert) => Ok(cert),
-        _ => Err(Box::new(ProtocolError{}))
+        _ => Err(Box::new(ProtocolError::new("SSL: Could not read private key")))
     }
 }
 
@@ -47,10 +47,10 @@ fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn
         Ok(pkcs12) => {
             match pkcs12.parse(password) {
                 Ok(parsed) => Ok(parsed),
-                _ => Err(Box::new(ProtocolError{}))
+                _ => Err(Box::new(ProtocolError::new("SSL: Could not parse pkcs12")))
             }
         },
-        _ => Err(Box::new(ProtocolError{}))
+        _ => Err(Box::new(ProtocolError::new("SSL: Could not read pkcs12")))
     }
 }
 
@@ -106,7 +106,7 @@ impl SslTransport {
 
         match transport.read_message()? {
             MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError{}))
+            _ => Err(Box::new(ProtocolError::new("SSL: Failed to validate new connection")))
         }
     }
 }
@@ -124,7 +124,7 @@ impl Transport for SslTransport {
                 Ok(MessageType::Reply(header, reply))
             }
             3 => Ok(MessageType::ValidateConnection(header)),
-            _ => Err(Box::new(ProtocolError{}))
+            _ => Err(Box::new(ProtocolError::new(&format!("SSL: Unsuppored reply message type: {}", header.message_type))))
         }
     }
 
@@ -134,7 +134,7 @@ impl Transport for SslTransport {
         let bytes = header.to_bytes()?;
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new("SSL: Could not validate connection")))
         }
 
         Ok(())
@@ -149,7 +149,7 @@ impl Transport for SslTransport {
 
         let written = self.stream.write(&bytes)?;
         if written != header.message_size as usize {
-            return Err(Box::new(ProtocolError {}))
+            return Err(Box::new(ProtocolError::new(&format!("SSL: Error writing request {}", request.request_id))))
         }
         Ok(())
     }
