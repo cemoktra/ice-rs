@@ -75,7 +75,7 @@ impl Enum {
         writer.write("*read_bytes = *read_bytes + read;\n\n", 2)?;
         writer.write(&format!("match {}::try_from(enum_value) {{\n", self.class_name()), 2)?;
         writer.write("Ok(enum_type) => Ok(enum_type),\n", 3)?;
-        writer.write("_ => Err(Box::new(ProtocolError {}))\n", 3)?;
+        writer.write("_ => Err(Box::new(ProtocolError::new(\"Cannot convert int to enum\")))\n", 3)?;
         writer.generate_close_block(2)?;
         writer.generate_close_block(1)?;
         writer.generate_close_block(0)

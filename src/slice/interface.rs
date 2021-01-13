@@ -86,7 +86,7 @@ impl Interface {
         writer.blank_line()?;
 
         writer.write("if !my_proxy.ice_is_a()? {\n", 2)?;
-        writer.write("return Err(Box::new(ProtocolError {}));\n", 3)?;
+        writer.write("return Err(Box::new(ProtocolError::new(\"ice_is_a() failed\")));\n", 3)?;
         writer.generate_close_block(2)?;
         writer.write("Ok(my_proxy)\n", 2)?;
 

@@ -115,7 +115,7 @@ impl Class {
             }
             writer.write("_ => {\n", 4)?;
             writer.write("if flags.last_slice {\n", 5)?;
-            writer.write("return Err(Box::new(ProtocolError {}));\n", 6)?;
+            writer.write("return Err(Box::new(ProtocolError::new(\"Last slice not expected\")));\n", 6)?;
             writer.write("} else {\n", 5)?;
             writer.write("read = read - 1;\n", 6)?;
             writer.write("break;\n", 6)?;
