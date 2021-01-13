@@ -10,7 +10,17 @@ pub struct ProtocolError {}
 /// A `ParsingError` appears when a problem occurs parsing ice
 /// files.
 #[derive(Debug)]
-pub struct ParsingError {}
+pub struct ParsingError {
+    detail: String
+}
+
+impl ParsingError {
+    pub fn new(detail: &str) -> ParsingError {
+        ParsingError {
+            detail: String::from(detail)
+        }
+    }
+}
 
 /// A `PropertyError` appears when a requested property is not
 /// existing.

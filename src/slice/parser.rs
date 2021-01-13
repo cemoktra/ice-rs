@@ -32,13 +32,21 @@ pub trait ParsedModule {
 
 impl ParsedModule for Module {
     fn parse(&mut self, rule: &mut Pairs<Rule>) -> Result<(), Box<dyn std::error::Error>> where Self: Sized {
-        let it = rule.next().ok_or(Box::new(ParsingError {}))?;
+        let it = rule.next().ok_or(
+            Box::new(ParsingError::new("No more items"))
+        )?;
         if it.as_rule() != Rule::keyword_module {
-            return Err(Box::new(ParsingError {}));
+            return Err(Box::new(ParsingError::new(
+                &format!("Expected keyword module but found {:?}", it.as_rule())
+            )));
         }
-        let it = rule.next().ok_or(Box::new(ParsingError {}))?;
+        let it = rule.next().ok_or(
+            Box::new(ParsingError::new("No more items"))
+        )?;
         if it.as_rule() != Rule::identifier {
-            return Err(Box::new(ParsingError {}));
+            return Err(Box::new(ParsingError::new(
+                &format!("Expected identifier but found {:?}", it.as_rule())
+            )));
         }
         let name = it.as_str();
         let module = match self.sub_modules.iter_mut().find(|f| f.name == name) {
@@ -50,7 +58,9 @@ impl ParsedModule for Module {
                 new_module.name = String::from(name);
                 new_module.full_name = format!("{}::{}", self.full_name, new_module.name);
                 self.sub_modules.push(new_module);
-                self.sub_modules.last_mut().ok_or(Box::new(ParsingError {}))?
+                self.sub_modules.last_mut().ok_or(
+                    Box::new(ParsingError::new("Unexpected. No module found."))
+                )?
             }
         };
 
@@ -87,7 +97,9 @@ impl ParsedModule for Module {
                                 self.type_map.borrow_mut().insert(exception.class_name(), module.snake_name());
                                 module.add_exception(exception);
                             }
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", block.as_rule())
+                            )))
                         }
                     }
                 },
@@ -102,12 +114,16 @@ impl ParsedModule for Module {
                                 self.type_map.borrow_mut().insert(String::from(id), module.snake_name());
                                 module.add_typedef(id, vartype.clone());
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", item.as_rule())
+                            )))
                         }
                     }
                 }
                 Rule::block_close => {},
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             };
         }
         Ok(())
@@ -137,17 +153,23 @@ impl ParsedObject for Enum {
                                         Rule::numeric_value => {
                                             value = Some(item.as_str().parse()?);
                                         },
-                                        _ => return Err(Box::new(ParsingError {}))
+                                        _ => return Err(Box::new(ParsingError::new(
+                                            &format!("Unexpected rule {:?}", item.as_rule())
+                                        )))
                                     };
                                 }
                                 enumeration.add_variant(id, value);
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
                         }
                     }
                 },
                 Rule::block_close => {},
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             }
         }
 
@@ -182,12 +204,16 @@ impl ParsedObject for Struct {
                             Rule::struct_line_end => {
                                 structure.add_member(id, typename.clone());
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
                         }
                     }
                 },
                 Rule::block_close => {},
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             }
         }
 
@@ -209,7 +235,9 @@ impl ParsedObject for Class {
                             Rule::identifier => {
                                 class.extends = Some(IceType::from(line.as_str())?);
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
                         }
                     }
                 }
@@ -228,7 +256,9 @@ impl ParsedObject for Class {
                                         Rule::optional_tag => {
                                             optional_tag = line.as_str().parse()?;
                                         }
-                                        _ => return Err(Box::new(ParsingError {}))
+                                        _ => return Err(Box::new(ParsingError::new(
+                                            &format!("Unexpected rule {:?}", line.as_rule())
+                                        )))
                                     }
                                 }
                             }
@@ -249,12 +279,16 @@ impl ParsedObject for Class {
                             Rule::class_line_end => {
                                 class.add_member(id, typename.clone());
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
                         }
                     }
                 },
                 Rule::block_close => {},
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             }
         }
 
@@ -274,7 +308,9 @@ impl ParsedObject for Interface {
                     interface.add_function(Function::parse(child.into_inner())?);
                 },
                 Rule::block_close => {},
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             }
         }
         Ok(interface)
@@ -294,7 +330,9 @@ impl ParsedObject for Function {
                         IceType::CustomType(_) => {
                             function.set_return_proxy();
                         }
-                        _ => return Err(Box::new(ParsingError {}))
+                        _ => return Err(Box::new(ParsingError::new(
+                            &format!("Unexpected rule {:?}", child.as_rule())
+                        )))
                     }
                 }
                 Rule::fn_return => {
@@ -309,7 +347,9 @@ impl ParsedObject for Function {
                                         Rule::optional_tag => {
                                             optional_tag = line.as_str().parse()?;
                                         }
-                                        _ => return Err(Box::new(ParsingError {}))
+                                        _ => return Err(Box::new(ParsingError::new(
+                                            &format!("Unexpected rule {:?}", line.as_rule())
+                                        )))
                                     }
                                 }
                             }
@@ -320,7 +360,9 @@ impl ParsedObject for Function {
                                     function.return_type = IceType::from(arg.as_str())?;
                                 }
                             }
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", arg.as_rule())
+                            )))
                         }
                     }
                 },
@@ -353,16 +395,22 @@ impl ParsedObject for Function {
                                                     Rule::optional_tag => {
                                                         optional_tag = line.as_str().parse()?;
                                                     }
-                                                    _ => return Err(Box::new(ParsingError {}))
+                                                    _ => return Err(Box::new(ParsingError::new(
+                                                        &format!("Unexpected rule {:?}", line.as_rule())
+                                                    )))
                                                 }
                                             }
                                         }
-                                        _ => return Err(Box::new(ParsingError {}))
+                                        _ => return Err(Box::new(ParsingError::new(
+                                            &format!("Unexpected rule {:?}", item.as_rule())
+                                        )))
                                     }
                                 }
                                 function.add_argument(id, typename.clone(), out);
                             }
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", arg.as_rule())
+                            )))
                         }
                     }
                 },
@@ -374,11 +422,15 @@ impl ParsedObject for Function {
                             Rule::identifier => {
                                 function.set_throw(Some(IceType::from(arg.as_str())?));
                             }
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", arg.as_rule())
+                            )))
                         }
                     }
                 }
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             }
         }
         Ok(function)
@@ -400,7 +452,9 @@ impl ParsedObject for Exception {
                             Rule::identifier => {
                                 exception.extends = Some(IceType::from(line.as_str())?);
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
                         }
                     }
                 }
@@ -414,12 +468,16 @@ impl ParsedObject for Exception {
                             Rule::struct_line_end => {
                                 exception.add_member(id, typename.clone());
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
                         }
                     }
                 },
                 Rule::block_close => {},
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
             }
         }
 
@@ -455,7 +513,9 @@ impl Module {
                                                 println!("  finished include");
                                             }
                                         }
-                                        _ => return Err(Box::new(ParsingError {}))
+                                        _ => return Err(Box::new(ParsingError::new(
+                                            &format!("Unexpected rule {:?}", item.as_rule())
+                                        )))
                                     }
                                 }
                             }
@@ -465,15 +525,19 @@ impl Module {
                             Rule::EOI => {
                                 return Ok(())
                             },
-                            _ => return Err(Box::new(ParsingError {}))
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", child.as_rule())
+                            )))
                         }
                     }
                 },
-                _ => return Err(Box::new(ParsingError {}))
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", pair.as_rule())
+                )))
             };
         }
 
-        Err(Box::new(ParsingError {}))
+        Err(Box::new(ParsingError::new("Unexpected error while parsing")))
     }
 }
 
