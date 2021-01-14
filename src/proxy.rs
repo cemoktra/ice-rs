@@ -91,10 +91,7 @@ impl Proxy {
         self.request_id = self.request_id + 1;
         RequestData {
             request_id: self.request_id,
-            id: Identity {
-                name: String::from(identity_name),
-                category: String::from("")
-            },
+            id: Identity::new(identity_name),
             facet: Vec::new(),
             operation: String::from(operation),
             mode: mode,

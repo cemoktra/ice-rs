@@ -30,6 +30,24 @@ pub struct Identity {
     pub category: String
 }
 
+impl Identity {
+    pub fn new(ident: &str) -> Identity {
+        match ident.find("/") {
+            Some(_) => {
+                let split = ident.split("/").collect::<Vec<&str>>();
+                Identity {
+                    name: String::from(split[0]),
+                    category: String::from(split[1])
+                }
+            }
+            None => Identity {
+                name: String::from(ident),
+                category: String::new()
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Encapsulation {
     pub size: i32,
