@@ -36,8 +36,8 @@ impl Identity {
             Some(_) => {
                 let split = ident.split("/").collect::<Vec<&str>>();
                 Identity {
-                    name: String::from(split[0]),
-                    category: String::from(split[1])
+                    name: String::from(split[1]),
+                    category: String::from(split[0])
                 }
             }
             None => Identity {
