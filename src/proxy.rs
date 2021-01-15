@@ -30,8 +30,6 @@ impl Proxy {
         for pair in result.into_inner() {
             match pair.as_rule() {
                 Rule::ident => {
-                    // TODO: add proxy options
-                    // https://doc.zeroc.com/ice/3.7/client-side-features/proxies/proxy-and-endpoint-syntax
                     ident = pair.as_str();
                 }
                 Rule::endpoint => {

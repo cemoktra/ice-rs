@@ -1,4 +1,4 @@
-use crate::protocol::{Encapsulation, Header, Identity, ProxyData, ReplyData, RequestData};
+use crate::{protocol::{Encapsulation, EndPointType, Header, Identity, LocatorResult, ProxyData, ReplyData, RequestData, SSLEndpointData, TCPEndpointData, Version}};
 use crate::errors::*;
 use std::convert::TryInto;
 use std::collections::HashMap;
@@ -6,9 +6,9 @@ use std::hash::Hash;
 use num_enum::TryFromPrimitive;
 use std::convert::TryFrom;
 
-
 /// The `IceSize` is a special wrapper around i32
 /// and is encoded in one byte if smaller than 255.
+#[derive(Debug)]
 pub struct IceSize {
     pub size: i32
 }
@@ -616,6 +616,8 @@ impl ToBytes for ProxyData {
         bytes.extend(self.facet.to_bytes()?);
         bytes.extend(self.mode.to_bytes()?);
         bytes.extend(self.secure.to_bytes()?);
+        bytes.extend(self.protocol.to_bytes()?);
+        bytes.extend(self.encoding.to_bytes()?);
 
         Ok(bytes)
     }
@@ -629,12 +631,140 @@ impl FromBytes for ProxyData {
             id: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
             facet: Vec::<String>::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
             mode: u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            secure: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+            secure: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            protocol: Version::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            encoding: Version::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
         };
         *read_bytes = *read_bytes + read;
         Ok(result)
     }
 }
+
+impl ToBytes for Version {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    {
+        let mut buffer: Vec<u8> = Vec::new();
+        buffer.extend(self.major.to_bytes()?);
+        buffer.extend(self.minor.to_bytes()?);
+        Ok(buffer)
+    }
+}
+
+impl FromBytes for Version {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut read = 0;
+        let major = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+        let minor = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+        *read_bytes = *read_bytes + read;
+        Ok(Version {
+            major: major,
+            minor: minor
+        })
+    }
+}
+
+impl ToBytes for TCPEndpointData {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    {
+        let mut buffer: Vec<u8> = Vec::new();
+        buffer.extend(self.host.to_bytes()?);
+        buffer.extend(self.port.to_bytes()?);
+        buffer.extend(self.timeout.to_bytes()?);
+        buffer.extend(self.compress.to_bytes()?);
+        Ok(buffer)
+    }
+}
+
+impl FromBytes for TCPEndpointData {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut read = 0;
+        let endpoint = TCPEndpointData {
+            host: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            port: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            timeout: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            compress: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+        };
+        *read_bytes = *read_bytes + read;
+        Ok(endpoint)
+    }
+}
+
+impl ToBytes for SSLEndpointData {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    {
+        let mut buffer: Vec<u8> = Vec::new();
+        buffer.extend(self.host.to_bytes()?);
+        buffer.extend(self.port.to_bytes()?);
+        buffer.extend(self.timeout.to_bytes()?);
+        buffer.extend(self.compress.to_bytes()?);
+        Ok(buffer)
+    }
+}
+
+impl FromBytes for SSLEndpointData {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut read = 0;
+        let endpoint = SSLEndpointData {
+            host: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            port: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            timeout: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+            compress: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+        };
+        *read_bytes = *read_bytes + read;
+        Ok(endpoint)
+    }
+}
+
+impl FromBytes for LocatorResult {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut read = 0;
+
+        let proxy_data = ProxyData::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+        let size = IceSize::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+
+        if size.size == 0 {
+            return Err(Box::new(ProtocolError::new("Error reading LocatorResult")));
+        }
+
+        match u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)? {
+            1 => {
+                let _unsued = i16::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                let tcp = TCPEndpointData::from_bytes(&encapsulation.data[0..encapsulation.data.len()], &mut read)?;
+                *read_bytes = *read_bytes + read;
+                Ok(LocatorResult {
+                    proxy_data: proxy_data,
+                    size: size,
+                    endpoint: EndPointType::TCP(tcp)
+                })
+            },
+            2 => {
+                let _unsued = i16::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                let ssl = SSLEndpointData::from_bytes(&encapsulation.data[0..encapsulation.data.len()], &mut read)?;
+                *read_bytes = *read_bytes + read;
+                Ok(LocatorResult {
+                    proxy_data: proxy_data,
+                    size: size,
+                    endpoint: EndPointType::SSL(ssl)
+                })
+            }
+            0 => {
+                let object = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                *read_bytes = *read_bytes + read;
+                Ok(LocatorResult {
+                    proxy_data: proxy_data,
+                    size: size,
+                    endpoint: EndPointType::WellKnownObject(object)
+                })
+            }
+            _ => {
+                Err(Box::new(ProtocolError::new("Unsupported endpoint type")))
+            }
+        } 
+    }
+}
+
 
 
 #[cfg(test)]

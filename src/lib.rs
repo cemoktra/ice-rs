@@ -48,3 +48,4 @@ pub mod iceobject;
 pub mod slice;
 pub mod initdata;
 pub mod properties;
+pub mod locator;

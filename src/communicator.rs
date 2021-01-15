@@ -5,7 +5,7 @@ use crate::errors::PropertyError;
 /// The Communicator is a basic object in ZeroC Ice. Currently
 /// this is more a stub that does dummy initialization.
 pub struct Communicator {
-    init_data: InitializationData
+    pub init_data: InitializationData
 }
 
 impl Communicator {

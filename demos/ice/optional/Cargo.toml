@@ -1,5 +1,5 @@
 [package]
-name = "minimal"
+name = "optional"
 version = "0.1.0"
 authors = ["cemoktra <b.schubert82@gmail.com>"]
 edition = "2018"
@@ -7,11 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
-name = "minimal_client"
+name = "optional_client"
 path = "src/client/bin.rs"
 
 [build-dependencies]
-ice-rs = { path = "../../" }
+ice-rs = { path = "../../../" }
 
 [dependencies]
-ice-rs = { path = "../../" }
+ice-rs = { path = "../../../" }
+num_enum = "0.5"

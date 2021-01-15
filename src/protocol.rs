@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-
+use crate::encoding::IceSize;
 
 
 #[derive(Debug)]
@@ -10,7 +10,6 @@ pub enum MessageType {
     ValidateConnection(Header),
     // CloseConnection
 }
-
 
 #[derive(Debug)]
 pub struct Header {
@@ -75,11 +74,52 @@ pub struct ReplyData {
 }
 
 #[derive(Debug)]
+pub struct Version
+{
+    pub major: u8,
+    pub minor: u8
+}
+
+#[derive(Debug)]
 pub struct ProxyData {
     pub id: String,
     pub facet: Vec<String>,
     pub mode: u8,
-    pub secure: bool
+    pub secure: bool,
+    pub protocol: Version,
+    pub encoding: Version
+}
+
+#[derive(Debug)]
+pub enum EndPointType {
+    WellKnownObject(String),
+    TCP(TCPEndpointData),
+    SSL(SSLEndpointData),
+}
+
+#[derive(Debug)]
+pub struct LocatorResult {
+    pub proxy_data: ProxyData,
+    pub size: IceSize,
+    pub endpoint: EndPointType
+}
+
+#[derive(Debug)]
+pub struct TCPEndpointData
+{
+    pub host: String,
+    pub port: i32,
+    pub timeout: i32,
+    pub compress: bool
+}
+
+#[derive(Debug)]
+pub struct SSLEndpointData
+{
+    pub host: String,
+    pub port: i32,
+    pub timeout: i32,
+    pub compress: bool
 }
 
 impl Header {
