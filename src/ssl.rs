@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
-use openssl::ssl::{SslConnector, SslMethod, SslStream};
+use openssl::ssl::{SslConnector, SslMethod, SslStream, SslVerifyMode};
 use openssl::x509::*;
 use openssl::pkcs12::*;
 use openssl::pkey::*;
@@ -75,6 +75,13 @@ impl SslTransport {
         store_builder.add_cert(ca)?;
         let store = store_builder.build();
         builder.set_verify_cert_store(store)?;
+
+        let verify_peer = properties.get("IceSSL.VerifyPeer").ok_or(Box::new(PropertyError::new("IceSSL.VerifyPeer")))?.parse::<u8>()?;
+        match verify_peer {
+            0 => builder.set_verify(SslVerifyMode::NONE),
+            _ => builder.set_verify(SslVerifyMode::PEER)
+        }
+
 
         // hanndle client
         let cert_file = properties.get("IceSSL.CertFile").ok_or(Box::new(PropertyError::new("IceSSL.CertFile")))?;
