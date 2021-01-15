@@ -17,11 +17,6 @@ path = "src/lib.rs"
 name = "slice2rs"
 path = "src/slice2rs/bin.rs"
 
-[[bin]]
-name = "simple"
-path = "demos/locator/simple/src/client/bin.rs"
-
-
 [dependencies]
 regex = "1"
 Inflector = "0.11"
