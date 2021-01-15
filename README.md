@@ -41,8 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Status ##
 The status can be seen in the number of supported [ZeroC Ice Demos](http://github.com/zeroc-ice/ice-demos). 
 
-- minimal
-- optional
+- Ice/minimal
+- Ice/optional
+- IceGrid/simple
 
 Supported transports:
 - TCP
