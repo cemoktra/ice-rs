@@ -1,6 +1,6 @@
 [package]
 name = "ice-rs"
-version = "0.1.10"
+version = "0.1.11"
 authors = ["cemoktra <b.schubert82@gmail.com>"]
 edition = "2018"
 description = "ZeroC Ice for Rust"
