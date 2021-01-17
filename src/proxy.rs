@@ -61,28 +61,18 @@ impl Proxy {
         }
 
         let address = &(host.to_owned() + ":" + port);
-        match protocol {
-            "default" | "tcp" => {
-                Ok(Proxy {
-                    transport: Box::new(TcpTransport::new(address)?),
-                    request_id: 0,
-                    ident: String::from(ident),
-                    host: String::from(host),
-                    port: port.parse()?
-
-                })
-            }
-            "ssl" => {
-                Ok(Proxy {
-                    transport: Box::new(SslTransport::new(address, properties)?),
-                    request_id: 0,
-                    ident: String::from(ident),
-                    host: String::from(host),
-                    port: port.parse()?
-                })
-            }
+        let transport: Box<dyn Transport> = match protocol {
+            "default" | "tcp" => Box::new(TcpTransport::new(address)?),
+            "ssl" => Box::new(SslTransport::new(address, properties)?),
             _ => return Err(Box::new(ProtocolError::new(&format!("Unsupported protocol: {}", protocol))))
-        }
+        };
+        Ok(Proxy {
+            transport: transport,
+            request_id: 0,
+            ident: String::from(ident),
+            host: String::from(host),
+            port: port.parse()?
+        })
     }
 
     pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation) -> RequestData {
