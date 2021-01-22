@@ -1,59 +1,64 @@
-use crate::slice::types::IceType;
-use crate::slice::writer;
-use crate::slice::escape::escape;
-use inflector::cases::{snakecase, pascalcase};
-use writer::Writer;
+use quote::{__private::TokenStream, quote};
+use super::struct_member::StructMember;
 
 
 #[derive(Clone, Debug)]
 pub struct Struct {
-    pub name: String,
-    pub members: Vec<(String, IceType)>
+    pub id: TokenStream,
+    pub ice_id: String,
+    pub members: Vec<StructMember>
 }
 
 impl Struct {
     pub fn empty() -> Struct {
         Struct {
-            name: String::from(""),
+            id: TokenStream::new(),
+            ice_id: String::new(),
             members: Vec::new()
         }
     }
 
-    pub fn new(name: &str) -> Struct {
-        Struct {
-            name: String::from(name),
-            members: Vec::new()
-        }
+    pub fn add_member(&mut self, member: StructMember) {
+        self.members.push(member);
     }
 
-    pub fn add_member(&mut self, name: &str, var_type: IceType) {
-        self.members.push((String::from(name), var_type));
-    }
+    pub fn generate(&self) -> Result<TokenStream, Box<dyn std::error::Error>> {
+        let id_token = &self.id;
+        let member_tokens = self.members.iter().map(|member| {
+            member.declare()
+        }).collect::<Vec<_>>();
+        let member_to_bytes_tokens = self.members.iter().map(|member| {
+            member.to_bytes()
+        }).collect::<Vec<_>>();
+        let member_from_bytes_tokens = self.members.iter().map(|member| {
+            member.from_bytes()
+        }).collect::<Vec<_>>();
 
-    pub fn class_name(&self) -> String {
-        pascalcase::to_pascal_case(&self.name)
-    }
+        Ok(quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #id_token {
+                #(#member_tokens),*
+            }
 
-    pub fn generate(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>> {
-        writer.generate_derive(vec!["Debug", "Clone", "PartialEq"], 0)?;
-        writer.generate_struct_open(&self.class_name(), 0)?;
+            impl ToBytes for #id_token {
+                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+                    let mut bytes = Vec::new();
+                    #(#member_to_bytes_tokens);*
+                    Ok(bytes)
+                }
+            }
 
-        for (type_name, var_type) in &self.members {
-            writer.generate_struct_member(&escape(&snakecase::to_snake_case(type_name)), &var_type.rust_type(), 1)?;
-        }
-        writer.generate_close_block(0)?;
-        writer.blank_line()?;
-
-        let mut lines = Vec::new();
-        for (key, _) in &self.members {
-            lines.push(format!("bytes.extend(self.{}.to_bytes()?);", &escape(&snakecase::to_snake_case(key))));
-        }
-        writer.generate_to_bytes_impl(&self.class_name(), lines, 0)?;
-
-        let mut lines = Vec::new();
-        for (key, var_type) in &self.members {
-            lines.push(format!("{}:  {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,", escape(&snakecase::to_snake_case(key)), var_type.rust_from()));
-        }
-        writer.generate_from_bytes_impl(&self.class_name(), lines, None, 0)
+            impl FromBytes for #id_token {
+                fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+                where Self: Sized {
+                    let mut read = 0;
+                    let obj = Self {
+                        #(#member_from_bytes_tokens);*
+                    };
+                    *read_bytes = *read_bytes + read;
+                    Ok(obj)
+                }
+            }
+        })
     }
 }

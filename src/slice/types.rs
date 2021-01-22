@@ -1,3 +1,5 @@
+use quote::__private::TokenStream;
+use quote::*;
 use regex::Regex;
 
 #[derive(Clone, Debug)]
@@ -86,6 +88,37 @@ impl IceType {
         match self {
             IceType::Optional(type_name, _) => format!("Option::<{}>", type_name.rust_type()),
             _ => self.rust_type(),
+        }
+    }
+
+    pub fn token(&self) -> TokenStream {
+        match self {
+            IceType::VoidType => quote! { () },
+            IceType::BoolType => quote! { bool },
+            IceType::ByteType => quote! { u8 },
+            IceType::ShortType => quote! { i16 },
+            IceType::IntType => quote! { i32 },
+            IceType::LongType => quote! { i64 },
+            IceType::FloatType => quote! { f32 },
+            IceType::DoubleType => quote! { f64 },
+            IceType::StringType => quote! { String },
+            IceType::SequenceType(type_name) => {
+                let sub_type = type_name.token();
+                quote!{ Vec<#sub_type> }
+            },
+            IceType::DictType(key_type, value_type) => {
+                let key = key_type.token();
+                let value = value_type.token();
+                quote!{ HashMap<#key, #value> }
+            },
+            IceType::Optional(type_name, _) => {
+                let sub_type = type_name.token();
+                quote!{ Option<#sub_type> }
+            },
+            IceType::CustomType(type_name) => {
+                let id = format_ident!("{}", type_name);
+                quote!{ #id }
+            },
         }
     }
 

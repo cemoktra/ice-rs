@@ -203,6 +203,7 @@ dependencies = [
  "openssl",
  "pest",
  "pest_derive",
+ "quote",
  "regex",
 ]
 

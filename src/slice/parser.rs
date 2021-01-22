@@ -4,8 +4,11 @@ use std::fs::File;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::io::prelude::*;
+use inflector::cases::{classcase, pascalcase, snakecase};
 use pest::Parser;
 use pest::iterators::Pairs;
+use quote::__private::TokenStream;
+use quote::*;
 use crate::errors::*;
 use crate::slice::module::Module;
 use crate::slice::enumeration::Enum;
@@ -15,6 +18,8 @@ use crate::slice::function::Function;
 use crate::slice::exception::Exception;
 use crate::slice::class::Class;
 use crate::slice::types::IceType;
+
+use super::{function_argument::FunctionArgument, function_return::FunctionReturn, function_throws::FunctionThrows, struct_member::StructMember};
 
 
 #[derive(Parser)]
@@ -75,17 +80,17 @@ impl ParsedModule for Module {
                             },
                             Rule::enum_block => {
                                 let enumeration = Enum::parse(block.into_inner())?;
-                                self.type_map.borrow_mut().insert(enumeration.class_name(), module.snake_name());
+                                self.type_map.borrow_mut().insert(enumeration.id.to_string(), module.snake_name());
                                 module.add_enum(enumeration);
                             },
                             Rule::struct_block => {
                                 let structure = Struct::parse(block.into_inner())?;
-                                self.type_map.borrow_mut().insert(structure.class_name(), module.snake_name());
+                                self.type_map.borrow_mut().insert(structure.id.to_string(), module.snake_name());
                                 module.add_struct(structure);
                             },
                             Rule::class_block => {
                                 let class = Class::parse(block.into_inner())?;
-                                self.type_map.borrow_mut().insert(class.class_name(), module.snake_name());
+                                self.type_map.borrow_mut().insert(class.id.to_string(), module.snake_name());
                                 module.add_class(class);
                             },
                             Rule::interface_block => {
@@ -94,7 +99,7 @@ impl ParsedModule for Module {
                             },
                             Rule::exception_block => {
                                 let exception = Exception::parse(block.into_inner())?;
-                                self.type_map.borrow_mut().insert(exception.class_name(), module.snake_name());
+                                self.type_map.borrow_mut().insert(exception.id.to_string(), module.snake_name());
                                 module.add_exception(exception);
                             }
                             _ => return Err(Box::new(ParsingError::new(
@@ -136,7 +141,11 @@ impl ParsedObject for Enum {
         for child in rule {
             match child.as_rule() {
                 Rule::keyword_enum => {},
-                Rule::identifier => { enumeration.name = String::from(child.as_str()); },
+                Rule::identifier => { 
+                    enumeration.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", classcase::to_class_case(&enumeration.ice_id));
+                    enumeration.id = quote! { #id_str };
+                },
                 Rule::block_open => {},
                 Rule::enum_lines => {
                     for line in child.into_inner() {
@@ -177,38 +186,70 @@ impl ParsedObject for Enum {
     }
 }
 
+impl ParsedObject for StructMember {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+        let mut member = StructMember::empty();
+        let mut optional = false;
+        let mut optional_tag = 0;
+        for child in rule {
+            match child.as_rule() {
+                Rule::keyword_optional => {
+                    optional = true;
+                    for line in child.into_inner() {
+                        match line.as_rule() {
+                            Rule::optional_tag => {
+                                optional_tag = line.as_str().parse()?;
+                            }
+                            _ => return Err(Box::new(ParsingError::new(
+                                &format!("Unexpected rule {:?}", line.as_rule())
+                            )))
+                        }
+                    }
+                },
+                Rule::typename => {
+                    if optional {
+                        member.r#type = IceType::Optional(Box::new(IceType::from(child.as_str())?), optional_tag);
+                    } else {
+                        member.r#type = IceType::from(child.as_str())?;
+                    }
+                },
+                Rule::identifier => {
+                    member.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", snakecase::to_snake_case(&member.ice_id));
+                    member.id = quote! { #id_str };
+                },
+                Rule::struct_line_default => {
+                    // TODO
+                }
+                Rule::struct_line_end => {
+                },
+                Rule::class_line_end => {
+                },
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
+            }
+        }
+        Ok(member)
+    }
+}
+
 impl ParsedObject for Struct {
     fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut structure = Struct::empty();
         for child in rule {
             match child.as_rule() {
                 Rule::keyword_struct => {},
-                Rule::identifier => { structure.name = String::from(child.as_str()); },
+                Rule::identifier => { 
+                    structure.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", classcase::to_class_case(&structure.ice_id));
+                    structure.id = quote! { #id_str };
+                },
                 Rule::block_open => {},
 
                 Rule::struct_line => {
-                    let mut typename = IceType::VoidType;
-                    let mut id = "";
-                    for line in child.into_inner() {
-                        match line.as_rule() {
-                            Rule::typename => {
-                                typename = IceType::from(line.as_str())?;
-                            },
-                            Rule::identifier => {
-                                id = line.as_str();
-                            },
-                            Rule::struct_line_default => {
-                                // TODO
-                                structure.add_member(id, typename.clone());
-                            }
-                            Rule::struct_line_end => {
-                                structure.add_member(id, typename.clone());
-                            },
-                            _ => return Err(Box::new(ParsingError::new(
-                                &format!("Unexpected rule {:?}", line.as_rule())
-                            )))
-                        }
-                    }
+                    let member = StructMember::parse(child.into_inner())?;
+                    structure.add_member(member);
                 },
                 Rule::block_close => {},
                 _ => return Err(Box::new(ParsingError::new(
@@ -227,7 +268,11 @@ impl ParsedObject for Class {
         for child in rule {
             match child.as_rule() {
                 Rule::keyword_class => {},
-                Rule::identifier => { class.name = String::from(child.as_str()); },
+                Rule::identifier => { 
+                    class.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", classcase::to_class_case(&class.ice_id));
+                    class.id = quote! { #id_str };
+                },
                 Rule::extends => {
                     for line in child.into_inner() {
                         match line.as_rule() {
@@ -243,47 +288,8 @@ impl ParsedObject for Class {
                 }
                 Rule::block_open => {},
                 Rule::class_line => {
-                    let mut optional = false;
-                    let mut optional_tag = 0;
-                    let mut typename = IceType::VoidType;
-                    let mut id = "";
-                    for line in child.into_inner() {
-                        match line.as_rule() {
-                            Rule::keyword_optional => {
-                                optional = true;
-                                for line in line.into_inner() {
-                                    match line.as_rule() {
-                                        Rule::optional_tag => {
-                                            optional_tag = line.as_str().parse()?;
-                                        }
-                                        _ => return Err(Box::new(ParsingError::new(
-                                            &format!("Unexpected rule {:?}", line.as_rule())
-                                        )))
-                                    }
-                                }
-                            }
-                            Rule::typename => {
-                                if optional {
-                                    typename = IceType::Optional(Box::new(IceType::from(line.as_str())?), optional_tag);
-                                } else {
-                                    typename = IceType::from(line.as_str())?;
-                                }
-                            },
-                            Rule::identifier => {
-                                id = line.as_str();
-                            },
-                            Rule::class_line_default => {
-                                // TODO
-                                class.add_member(id, typename.clone());
-                            }
-                            Rule::class_line_end => {
-                                class.add_member(id, typename.clone());
-                            },
-                            _ => return Err(Box::new(ParsingError::new(
-                                &format!("Unexpected rule {:?}", line.as_rule())
-                            )))
-                        }
-                    }
+                    let member = StructMember::parse(child.into_inner())?;
+                    class.add_member(member);
                 },
                 Rule::block_close => {},
                 _ => return Err(Box::new(ParsingError::new(
@@ -302,7 +308,11 @@ impl ParsedObject for Interface {
         for child in rule {
             match child.as_rule() {
                 Rule::keyword_interface => {},
-                Rule::identifier => { interface.name = String::from(child.as_str()); },
+                Rule::identifier => { 
+                    interface.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", classcase::to_class_case(&interface.ice_id));
+                    interface.id = quote! { #id_str };
+                },
                 Rule::block_open => {},
                 Rule::function => {
                     interface.add_function(Function::parse(child.into_inner())?);
@@ -326,87 +336,24 @@ impl ParsedObject for Function {
                     function.set_idempotent();
                 }
                 Rule::fn_return_proxy => {
-                    match function.return_type {
-                        IceType::CustomType(_) => {
-                            function.set_return_proxy();
-                        }
-                        _ => return Err(Box::new(ParsingError::new(
-                            &format!("Unexpected rule {:?}", child.as_rule())
-                        )))
-                    }
+                    function.return_type.set_proxy();
                 }
                 Rule::fn_return => {
-                    let mut optional = false;
-                    let mut optional_tag = 0;
-                    for arg in child.into_inner() {
-                        match arg.as_rule() {
-                            Rule::keyword_optional => {
-                                optional = true;
-                                for line in arg.into_inner() {
-                                    match line.as_rule() {
-                                        Rule::optional_tag => {
-                                            optional_tag = line.as_str().parse()?;
-                                        }
-                                        _ => return Err(Box::new(ParsingError::new(
-                                            &format!("Unexpected rule {:?}", line.as_rule())
-                                        )))
-                                    }
-                                }
-                            }
-                            Rule::identifier => {
-                                if optional {
-                                    function.return_type = IceType::Optional(Box::new(IceType::from(arg.as_str())?), optional_tag);
-                                } else {
-                                    function.return_type = IceType::from(arg.as_str())?;
-                                }
-                            }
-                            _ => return Err(Box::new(ParsingError::new(
-                                &format!("Unexpected rule {:?}", arg.as_rule())
-                            )))
-                        }
-                    }
+                    function.return_type = FunctionReturn::parse(child.into_inner())?;
                 },
-                Rule::fn_name => { function.name = String::from(child.as_str()); },
+                Rule::fn_name => { 
+                    function.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", snakecase::to_snake_case(&function.ice_id));
+                    function.id = quote! { #id_str };
+                    
+                },
                 Rule::fn_arg_open => {},
                 Rule::fn_arg_list => {
                     for arg in child.into_inner() {
                         match arg.as_rule() {
                             Rule::fn_arg | Rule::fn_arg_out => {
-                                let mut out = false;
-                                let mut optional = false;
-                                let mut optional_tag = 0;
-                                let mut typename = IceType::VoidType;
-                                let mut id = "";
-                                for item in arg.into_inner() {
-                                    match item.as_rule() {
-                                        Rule::typename => {
-                                            if optional {
-                                                typename = IceType::Optional(Box::new(IceType::from(item.as_str())?), optional_tag);
-                                            } else {
-                                                typename = IceType::from(item.as_str())?;
-                                            }
-                                        },
-                                        Rule::identifier => { id = item.as_str(); },
-                                        Rule::keyword_out => { out = true; },
-                                        Rule::keyword_optional => {
-                                            optional = true;
-                                            for line in item.into_inner() {
-                                                match line.as_rule() {
-                                                    Rule::optional_tag => {
-                                                        optional_tag = line.as_str().parse()?;
-                                                    }
-                                                    _ => return Err(Box::new(ParsingError::new(
-                                                        &format!("Unexpected rule {:?}", line.as_rule())
-                                                    )))
-                                                }
-                                            }
-                                        }
-                                        _ => return Err(Box::new(ParsingError::new(
-                                            &format!("Unexpected rule {:?}", item.as_rule())
-                                        )))
-                                    }
-                                }
-                                function.add_argument(id, typename.clone(), out);
+                                let arg = FunctionArgument::parse(arg.into_inner())?;
+                                function.add_argument(arg);
                             }
                             _ => return Err(Box::new(ParsingError::new(
                                 &format!("Unexpected rule {:?}", arg.as_rule())
@@ -416,17 +363,7 @@ impl ParsedObject for Function {
                 },
                 Rule::fn_arg_close => {},
                 Rule::fn_throws => {
-                    for arg in child.into_inner() {
-                        match arg.as_rule() {
-                            Rule::keyword_throws => {}
-                            Rule::identifier => {
-                                function.set_throw(Some(IceType::from(arg.as_str())?));
-                            }
-                            _ => return Err(Box::new(ParsingError::new(
-                                &format!("Unexpected rule {:?}", arg.as_rule())
-                            )))
-                        }
-                    }
+                    function.throws = FunctionThrows::parse(child.into_inner())?;
                 }
                 _ => return Err(Box::new(ParsingError::new(
                     &format!("Unexpected rule {:?}", child.as_rule())
@@ -437,13 +374,110 @@ impl ParsedObject for Function {
     }
 }
 
+impl ParsedObject for FunctionThrows {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+        for child in rule {
+            match child.as_rule() {
+                Rule::keyword_throws => {}
+                Rule::identifier => {
+                    return Ok(FunctionThrows::new(IceType::from(child.as_str())?));
+                }
+                _ => { }
+            }
+        }
+        return Err(Box::new(ParsingError::new(
+            &format!("Did not find throw identifier")
+        )))
+    }
+}
+
+impl ParsedObject for FunctionReturn {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+        let mut return_type = IceType::VoidType;
+        let mut optional = false;
+        let mut optional_tag = 0;
+        for child in rule {
+            match child.as_rule() {
+                Rule::keyword_optional => {
+                    optional = true;
+                    let tag = child.into_inner().next().ok_or(Box::new(ParsingError::new("No more items")))?;
+
+                    if tag.as_rule() != Rule::optional_tag {
+                        return Err(Box::new(ParsingError::new(
+                            &format!("Expected keyword optional_tag but found {:?}", tag.as_rule())
+                        )));
+                    }
+                    optional_tag = tag.as_str().parse()?;
+                }
+                Rule::identifier => {
+                    if optional {
+                        return_type = IceType::Optional(Box::new(IceType::from(child.as_str())?), optional_tag);
+                    } else {
+                        return_type = IceType::from(child.as_str())?;
+                    }
+                }
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
+            }
+        }
+        Ok(FunctionReturn::new(return_type))
+    }
+}
+
+impl ParsedObject for FunctionArgument {
+    fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+        let mut id = TokenStream::new();
+        let mut optional = false;
+        let mut optional_tag = 0;
+        let mut typename = IceType::VoidType;
+        let mut out = false;
+
+        for child in rule {
+            match child.as_rule() {
+                Rule::typename => {
+                    if optional {
+                        typename = IceType::Optional(Box::new(IceType::from(child.as_str())?), optional_tag);
+                    } else {
+                        typename = IceType::from(child.as_str())?;
+                    }
+                },
+                Rule::identifier => {
+                    let id_str = format_ident!("{}", snakecase::to_snake_case(child.as_str()));
+                    id = quote! { #id_str }
+                },
+                Rule::keyword_out => out = true,
+                Rule::keyword_optional => {
+                    optional = true;
+                    let tag = child.into_inner().next().ok_or(Box::new(ParsingError::new("No more items")))?;
+
+                    if tag.as_rule() != Rule::optional_tag {
+                        return Err(Box::new(ParsingError::new(
+                            &format!("Expected keyword optional_tag but found {:?}", tag.as_rule())
+                        )));
+                    }
+                    optional_tag = tag.as_str().parse()?;
+                }
+                _ => return Err(Box::new(ParsingError::new(
+                    &format!("Unexpected rule {:?}", child.as_rule())
+                )))
+            }
+        }
+        Ok(FunctionArgument::new(id, typename, out))
+    }
+}
+
 impl ParsedObject for Exception {
     fn parse(rule: Pairs<Rule>) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
         let mut exception = Exception::empty();
         for child in rule {
             match child.as_rule() {
                 Rule::keyword_exception => {},
-                Rule::identifier => { exception.name = String::from(child.as_str()); },
+                Rule::identifier => { 
+                    exception.ice_id = String::from(child.as_str());
+                    let id_str = format_ident!("{}", pascalcase::to_pascal_case(&exception.ice_id));
+                    exception.id = quote! { #id_str };
+                },
                 Rule::block_open => {},
                 Rule::extends => {
                     for line in child.into_inner() {
@@ -459,20 +493,8 @@ impl ParsedObject for Exception {
                     }
                 }
                 Rule::struct_line => {
-                    let mut typename = IceType::VoidType;
-                    let mut id = "";
-                    for line in child.into_inner() {
-                        match line.as_rule() {
-                            Rule::typename => { typename = IceType::from(line.as_str())? },
-                            Rule::identifier => { id = line.as_str(); },
-                            Rule::struct_line_end => {
-                                exception.add_member(id, typename.clone());
-                            },
-                            _ => return Err(Box::new(ParsingError::new(
-                                &format!("Unexpected rule {:?}", line.as_rule())
-                            )))
-                        }
-                    }
+                    let member = StructMember::parse(child.into_inner())?;
+                    exception.add_member(member);
                 },
                 Rule::block_close => {},
                 _ => return Err(Box::new(ParsingError::new(
