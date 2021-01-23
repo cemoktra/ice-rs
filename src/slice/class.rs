@@ -1,143 +1,168 @@
 use crate::slice::types::IceType;
-use crate::slice::writer;
-use crate::slice::escape::escape;
-use inflector::cases::{snakecase, pascalcase};
-use writer::Writer;
+use quote::{__private::TokenStream, quote};
+
+use super::struct_member::StructMember;
 
 
 #[derive(Clone, Debug)]
 pub struct Class {
-    pub name: String,
+    pub id: TokenStream,
+    pub ice_id: String,
+    pub members: Vec<StructMember>,
     pub extends: Option<IceType>,
-    pub members: Vec<(String, IceType)>
 }
 
 impl Class {
     pub fn empty() -> Class {
         Class {
-            name: String::from(""),
-            extends: None,
-            members: Vec::new()
+            id: TokenStream::new(),
+            ice_id: String::new(),
+            members: Vec::new(),
+            extends: None
         }
     }
 
-    pub fn new(name: &str) -> Class {
-        Class {
-            name: String::from(name),
-            extends: None,
-            members: Vec::new()
-        }
+    pub fn add_member(&mut self, member: StructMember) {
+        self.members.push(member);
     }
 
-    pub fn add_member(&mut self, name: &str, var_type: IceType) {
-        self.members.push((String::from(name), var_type));
-    }
-
-    pub fn class_name(&self) -> String {
-        pascalcase::to_pascal_case(&self.name)
-    }
-
-    pub fn generate(&self, writer: &mut Writer) -> Result<(), Box<dyn std::error::Error>> {
-        writer.generate_derive(vec!["Debug", "Clone", "PartialEq"], 0)?;
-        writer.generate_struct_open(&self.class_name(), 0)?;
-
-        for (type_name, var_type) in &self.members {
-            writer.generate_struct_member(&escape(&snakecase::to_snake_case(type_name)), &var_type.rust_type(), 1)?;
-        }
-        if self.extends.is_some() {
-            writer.generate_struct_member("extends", &self.extends.as_ref().unwrap().rust_type(), 1)?;
-        }
-        writer.generate_close_block(0)?;
-        writer.blank_line()?;
-
-        let mut lines = Vec::new();
-        for (key, _) in &self.members {
-            lines.push(format!("bytes.extend(self.{}.to_bytes()?);", &escape(&snakecase::to_snake_case(key))));
-        }
-        writer.generate_to_bytes_impl(&self.class_name(), lines, 0)?;
-
-        writer.generate_impl(Some("FromBytes"), &self.class_name(), 0)?;
-        writer.generate_fn(false, None, "from_bytes", vec![String::from("bytes: &[u8]"), String::from("read_bytes: &mut i32")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
-
-        writer.write("let mut read = 0;\n", 2)?;
-        writer.write("let marker = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
-        writer.write("if marker != 1 && marker != 255 {\n", 2)?;
-        writer.write("read = 0;\n", 3)?;
-        writer.generate_close_block(2)?;
-        writer.write("let flags = SliceFlags::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 2)?;
-
-        writer.write("match flags.type_id {\n", 2)?;
-        writer.write("SliceFlagsTypeEncoding::StringTypeId => {\n", 3)?;
-        writer.write("let _slice_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 4)?;
-        // TODO: check slice name matches class
-        writer.generate_close_block(3)?;
-        writer.write("SliceFlagsTypeEncoding::CompactTypeId => {\n", 3)?;
-        writer.write("todo!()\n", 4)?;
-        writer.generate_close_block(3)?;
-        writer.write("SliceFlagsTypeEncoding::IndexTypeId => {\n", 3)?;
-        writer.write("todo!()\n", 4)?;
-        writer.generate_close_block(3)?;
-        writer.write("SliceFlagsTypeEncoding::NoTypeId => {}\n", 3)?;
-        writer.generate_close_block(2)?;
-
-        let mut has_optionals = false;
-        for (key, var_type) in &self.members {
-            match var_type {
+    pub fn generate(&self) -> Result<TokenStream, Box<dyn std::error::Error>> {
+        let id_token = &self.id;
+        let mut member_tokens = self.members.iter().map(|member| {
+            member.declare()
+        }).collect::<Vec<_>>();
+        let member_to_bytes_tokens = self.members.iter().map(|member| {
+            member.to_bytes()
+        }).collect::<Vec<_>>();
+        let member_from_bytes_tokens = self.members.iter().map(|member| {
+            let id_token = &member.id;
+            let var_token = &member.r#type.token_from();
+            match member.r#type {
                 IceType::Optional(_, _) => {
-                    has_optionals = true;
-                    writer.write(&format!("let mut {} = None;\n", &escape(&snakecase::to_snake_case(key))), 2)?;
+                    quote! {
+                        let mut #id_token = None
+                    }
                 }
                 _ => {
-                    writer.write(&format!("let {} = {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", &escape(&snakecase::to_snake_case(key)), var_type.rust_from()), 2)?;
-                }
-            };
-        }
-
-        if has_optionals {
-            writer.write("while read < bytes.len() as i32 {\n", 2)?;   
-            writer.write("let flag_byte = bytes[read as usize..bytes.len()].first().unwrap();\n", 3)?;
-            writer.write("if *flag_byte == 0xFF {\n", 3)?;
-            writer.write("break;\n", 4)?;
-            writer.generate_close_block(3)?;            
-            writer.write("let flag = OptionalFlag::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;\n", 3)?;
-            writer.write("match flag.tag {\n", 3)?;
-
-            for (key, var_type) in &self.members {
-                match var_type {
-                    IceType::Optional(type_name, tag) => {
-                        writer.write(&format!("{} => {{\n", tag), 4)?;
-                        // r#type = Some(NumberType::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?);
-                        writer.write(&format!("{} = Some({}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?);\n", &escape(&snakecase::to_snake_case(key)), type_name.rust_type()), 5)?;
-                        writer.generate_close_block(4)?;
+                    quote! {
+                        let #id_token = #var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
                     }
-                    _ => { }
-                };
+                }
             }
-            writer.write("_ => {\n", 4)?;
-            writer.write("if flags.last_slice {\n", 5)?;
-            writer.write("return Err(Box::new(ProtocolError::new(\"Last slice not expected\")));\n", 6)?;
-            writer.write("} else {\n", 5)?;
-            writer.write("read = read - 1;\n", 6)?;
-            writer.write("break;\n", 6)?;
-            writer.generate_close_block(5)?;
-            writer.generate_close_block(4)?;
-            writer.generate_close_block(3)?;            
-            writer.generate_close_block(2)?;
+        }).collect::<Vec<_>>();
+
+        let mut member_to_struct = self.members.iter().map(|member| {
+            let id_token = &member.id;
+            quote! {
+                #id_token: #id_token
+            }
+        }).collect::<Vec<_>>();
+
+        if self.extends.is_some() { 
+            let token = self.extends.as_ref().unwrap().token();
+            member_tokens.push(quote!{
+                extends: #token
+            });
+            member_to_struct.push(quote!{
+                extends: #token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+            });
         }
 
-        writer.write("let obj = Self{\n", 2)?;
-        for (key, _) in &self.members {
-            writer.write(&format!("{}: {},\n", &escape(&snakecase::to_snake_case(key)), &escape(&snakecase::to_snake_case(key))), 3)?;
-        }
-        if self.extends.is_some() {
-            writer.write(&format!("extends: {}::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,\n", &self.extends.as_ref().unwrap().rust_from()), 3)?;
-        }
-        writer.write("};\n", 2)?;
-        writer.write("*read_bytes = *read_bytes + read;\n", 2)?;
-        writer.write("Ok(obj)\n", 2)?;
-        
-        writer.generate_close_block(1)?;
-        writer.generate_close_block(0)?;
-        writer.blank_line()
+        let has_optionals = self.members.iter().any(|member| {
+            match member.r#type {
+                IceType::Optional(_, _) => { true },
+                _ => false
+            }
+        });
+
+        let optional_tokens = self.members.iter()
+        .filter_map(|member| {
+            let id_token = &member.id;            
+            match &member.r#type {
+                IceType::Optional(option_type, tag) => {
+                    let var_token = option_type.token();
+                    Some(quote! {
+                        #tag => {
+                            #id_token = Some(#var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?);
+                        }
+                    })
+                },
+                _ => None
+            }
+        }).collect::<Vec<_>>();
+
+        let optional_from = if has_optionals {
+            Some(quote! {
+                while read < bytes.len() as i32 {
+                    let flag_byte = bytes[read as usize..bytes.len()].first().unwrap();
+                    if *flag_byte == 0xFF {
+                        break;
+                    }
+                    let flag = OptionalFlag::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                    match flag.tag {
+                        #(#optional_tokens),*
+                        _ => {
+                            if flags.last_slice {
+                                return Err(Box::new(ProtocolError::new("Last slice not expected")));
+                            } else {
+                                read = read - 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+            })
+        } else {
+            None
+        };
+
+        // TODO: ToBytes incomplete
+        Ok(quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct #id_token {
+                #(#member_tokens),*
+            }
+
+            impl ToBytes for #id_token {
+                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+                    let mut bytes = Vec::new();
+                    #(#member_to_bytes_tokens);*;
+                    Ok(bytes)
+                }
+            }
+
+            impl FromBytes for #id_token {
+                fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+                where Self: Sized {
+                    let mut read = 0;
+                    let marker = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                    if marker != 1 && marker != 255 {
+                        read = 0;
+                    }
+                    let flags = SliceFlags::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                    match flags.type_id {
+                        SliceFlagsTypeEncoding::StringTypeId => {
+                            let _slice_name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                        }
+                        SliceFlagsTypeEncoding::CompactTypeId => {
+                            todo!()
+                        }
+                        SliceFlagsTypeEncoding::IndexTypeId => {
+                            todo!()
+                        }
+                        SliceFlagsTypeEncoding::NoTypeId => {}
+                    }
+
+                    #(#member_from_bytes_tokens);*;
+                    #optional_from
+
+                    let obj = Self{
+                        #(#member_to_struct),*
+                    };
+                    *read_bytes = *read_bytes + read;
+                    Ok(obj)
+                }
+            }
+        })
     }
 }

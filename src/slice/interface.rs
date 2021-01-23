@@ -1,98 +1,82 @@
 use crate::slice::function::Function;
-use crate::slice::writer;
-use inflector::cases::classcase;
-use writer::Writer;
+use quote::{__private::TokenStream, format_ident, quote};
 
 
 #[derive(Clone, Debug)]
 pub struct Interface {
-    pub name: String,
+    pub id: TokenStream,
+    pub ice_id: String,
     pub functions: Vec<Function>
 }
 
 impl Interface {
     pub fn empty() -> Interface {
         Interface {
-            name: String::from(""),
+            id: TokenStream::new(),
+            ice_id: String::from(""),
             functions: Vec::new()
         }
-    }
-
-    pub fn new(name: &str) -> Interface {
-        Interface {
-            name: String::from(name),
-            functions: Vec::new()
-        }
-    }
-
-    pub fn class_name(&self) -> String {
-        classcase::to_class_case(&self.name)
     }
 
     pub fn add_function(&mut self, function: Function) {
         self.functions.push(function);
     }
 
-    pub fn generate(&self, writer: &mut Writer, mod_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        writer.generate_trait_open(&self.class_name(), Some("IceObject"), 0)?;
+    pub fn generate(&self, mod_path: &str) -> Result<TokenStream, Box<dyn std::error::Error>> {
+        let mut decl_tokens = TokenStream::new();
         for function in &self.functions {
-            function.generate_decl(writer)?;  
+            let token = function.generate_decl()?;
+            decl_tokens = quote! {
+                #decl_tokens
+                #token
+            };
         }
-        writer.generate_close_block(0)?;
-
-        let prx_name = format!("{}Prx", self.class_name());
-        writer.generate_struct_open(&prx_name, 0)?;
-        writer.generate_struct_member("proxy", "Proxy", 1)?;
-        writer.generate_close_block(0)?;
-        writer.blank_line()?;
-        
-        writer.generate_impl(Some("IceObject"), &prx_name, 0)?;
-
-        writer.write(&format!("const TYPE_ID: &'static str = \"{}::{}\";\n", mod_path, self.name), 1)?;
-
-        writer.generate_fn(
-            false, 
-            Some(String::from("T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes")),
-            "dispatch", 
-            vec![
-                String::from("&mut self"),
-                String::from("op: &str"),
-                String::from("mode: u8"),
-                String::from("params: &Encapsulation"),
-            ],
-            Some("Result<ReplyData, Box<dyn std::error::Error>>"),
-            true,
-            1
-        )?;
-        writer.write("let id = String::from(self.proxy.ident.clone());\n", 2)?;
-        writer.write(&format!("let req = self.proxy.create_request(&id, op, mode, params);\n"), 2)?;
-        writer.write("self.proxy.make_request::<T>(&req)\n", 2)?;
-        writer.generate_close_block(1)?;
-        writer.generate_close_block(0)?;
-        writer.blank_line()?;
-
-        writer.generate_impl(Some(&self.class_name()), &prx_name, 0)?;
+        let mut impl_tokens = TokenStream::new();
         for function in &self.functions {
-            function.generate_impl(writer)?;  
+            let token = function.generate_impl()?;
+            impl_tokens = quote! {
+                #impl_tokens
+                #token
+            };
         }
-        writer.generate_close_block(0)?;
-        writer.blank_line()?;
 
-        writer.generate_impl(None, &prx_name, 0)?;
-        writer.generate_fn(true, None, "checked_cast", vec![String::from("proxy: Proxy")], Some("Result<Self, Box<dyn std::error::Error>>"), true, 1)?;
-        writer.write("let mut my_proxy = Self {\n", 2)?;
-        writer.write("proxy: proxy,\n", 3)?;
-        writer.write("};\n", 2)?;
-        writer.blank_line()?;
+        let id_token = &self.id;
+        let id_proxy_token = format_ident!("{}Prx", self.id.to_string());
+        let type_id_token = format!("{}::{}", mod_path, self.ice_id);
+        Ok(quote! {
+            pub trait #id_token : IceObject {
+                #decl_tokens
+            }
 
-        writer.write("if !my_proxy.ice_is_a()? {\n", 2)?;
-        writer.write("return Err(Box::new(ProtocolError::new(\"ice_is_a() failed\")));\n", 3)?;
-        writer.generate_close_block(2)?;
-        writer.write("Ok(my_proxy)\n", 2)?;
+            pub struct #id_proxy_token {
+                proxy: Proxy
+            }
 
-        writer.generate_close_block(1)?;
-        writer.generate_close_block(0)?;
-        writer.blank_line()?;
-        Ok(())
+            impl IceObject for #id_proxy_token {
+                const TYPE_ID: &'static str = #type_id_token;
+                fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Box<dyn std::error::Error>> {
+                    let id = String::from(self.proxy.ident.clone());
+                    let req = self.proxy.create_request(&id, op, mode, params);
+                    self.proxy.make_request::<T>(&req)
+                }
+            }
+
+            impl #id_token for #id_proxy_token {
+                #impl_tokens
+            }
+
+            impl #id_proxy_token {
+                pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
+                    let mut my_proxy = Self {
+                        proxy: proxy,
+                    };
+            
+                    if !my_proxy.ice_is_a()? {
+                        return Err(Box::new(ProtocolError::new("ice_is_a() failed")));
+                    }
+                    Ok(my_proxy)
+                }
+            }
+        })
     }
 }
