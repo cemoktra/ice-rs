@@ -36,11 +36,11 @@ impl Class {
         }).collect::<Vec<_>>();
         let member_from_bytes_tokens = self.members.iter().map(|member| {
             let id_token = &member.id;
-            let var_token = &member.r#type.token();
+            let var_token = &member.r#type.token_from();
             match member.r#type {
                 IceType::Optional(_, _) => {
                     quote! {
-                        let mut #id_token = None;
+                        let mut #id_token = None
                     }
                 }
                 _ => {
@@ -78,12 +78,12 @@ impl Class {
         let optional_tokens = self.members.iter()
         .filter_map(|member| {
             let id_token = &member.id;
-            let var_token = &member.r#type.token();
+            let var_token = &member.r#type.token_from();
             match &member.r#type {
-                IceType::Optional(_, _) => {
+                IceType::Optional(_, tag) => {
                     Some(quote! {
-                        tag => {
-                            #id_token = Some(#var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?);
+                        #tag => {
+                            #id_token = #var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
                         }
                     })
                 },
@@ -126,7 +126,7 @@ impl Class {
             impl ToBytes for #id_token {
                 fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
                     let mut bytes = Vec::new();
-                    #(#member_to_bytes_tokens);*
+                    #(#member_to_bytes_tokens);*;
                     Ok(bytes)
                 }
             }
@@ -153,12 +153,12 @@ impl Class {
                         SliceFlagsTypeEncoding::NoTypeId => {}
                     }
 
-                    #(#member_from_bytes_tokens);*
+                    #(#member_from_bytes_tokens);*;
                     #optional_from
 
                     let obj = Self{
                         #(#member_to_struct),*
-                    }
+                    };
                     *read_bytes = *read_bytes + read;
                     Ok(obj)
                 }

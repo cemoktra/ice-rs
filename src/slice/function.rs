@@ -85,9 +85,8 @@ impl Function {
 
         Ok(quote! {
             fn #id_token (#(#arg_tokens),*) -> Result<#return_token, Box<dyn std::error::Error>> {
-                
-                #(#arg_serialize_input_tokens)*
                 #bytes_token
+                #(#arg_serialize_input_tokens)*
                 #reply_token self.dispatch::<#throw_token>(&String::from(#ice_id_token), #mode, &Encapsulation::from(bytes))?;
                 #read_token
                 #(#arg_serialize_output_tokens)*

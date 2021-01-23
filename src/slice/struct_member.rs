@@ -22,14 +22,14 @@ impl StructMember {
         let id_token = &self.id;
         let var_token = self.r#type.token();
         quote! {
-            #id_token: #var_token
+            pub #id_token: #var_token
         }
     }
 
     pub fn to_bytes(&self) -> TokenStream {
         let id_token = &self.id;
         quote! {
-            bytes.extend(self.#id_token.to_bytes()?);
+            bytes.extend(self.#id_token.to_bytes()?)
         }
     }
 

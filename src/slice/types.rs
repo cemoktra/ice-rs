@@ -91,6 +91,16 @@ impl IceType {
         }
     }
 
+    pub fn token_from(&self) -> TokenStream {
+        match self {
+            IceType::Optional(type_name, _) => {
+                let sub_type = type_name.token();
+                quote!{ Option::<#sub_type> }
+            }
+            _ => self.token(),
+        }
+    }
+
     pub fn token(&self) -> TokenStream {
         match self {
             IceType::VoidType => quote! { () },

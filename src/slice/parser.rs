@@ -4,6 +4,7 @@ use std::fs::File;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::io::prelude::*;
+use escape::escape;
 use inflector::cases::{classcase, pascalcase, snakecase};
 use pest::Parser;
 use pest::iterators::Pairs;
@@ -19,7 +20,7 @@ use crate::slice::exception::Exception;
 use crate::slice::class::Class;
 use crate::slice::types::IceType;
 
-use super::{function_argument::FunctionArgument, function_return::FunctionReturn, function_throws::FunctionThrows, struct_member::StructMember};
+use super::{escape, function_argument::FunctionArgument, function_return::FunctionReturn, function_throws::FunctionThrows, struct_member::StructMember};
 
 
 #[derive(Parser)]
@@ -215,10 +216,10 @@ impl ParsedObject for StructMember {
                 },
                 Rule::identifier => {
                     member.ice_id = String::from(child.as_str());
-                    let id_str = format_ident!("{}", snakecase::to_snake_case(&member.ice_id));
+                    let id_str = format_ident!("{}", escape::escape(&snakecase::to_snake_case(&member.ice_id)));
                     member.id = quote! { #id_str };
                 },
-                Rule::struct_line_default => {
+                Rule::struct_line_default | Rule::class_line_default => {
                     // TODO
                 }
                 Rule::struct_line_end => {
@@ -443,7 +444,7 @@ impl ParsedObject for FunctionArgument {
                     }
                 },
                 Rule::identifier => {
-                    let id_str = format_ident!("{}", snakecase::to_snake_case(child.as_str()));
+                    let id_str = format_ident!("{}", escape(&snakecase::to_snake_case(child.as_str())));
                     id = quote! { #id_str }
                 },
                 Rule::keyword_out => out = true,

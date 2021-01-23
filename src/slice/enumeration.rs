@@ -73,7 +73,7 @@ impl Enum {
                     *read_bytes = *read_bytes + read;
                     match #id_token::try_from(enum_value) {
                         Ok(enum_type) => Ok(enum_type),
-                        _ => Err(Box::new(ProtocolError::new("Cannot convert int to enum")))
+                        _ => Err(Box::new(ProtocolError::new(&format!("Cannot convert int {} to enum", enum_value))))
                     }
                 }
             }
