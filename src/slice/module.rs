@@ -3,7 +3,7 @@ use crate::slice::structure::Struct;
 use crate::slice::interface::Interface;
 use crate::slice::exception::Exception;
 use crate::slice::class::Class;
-use std::path::Path;
+use std::{path::Path, process::Stdio};
 use std::fs::File;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -12,6 +12,7 @@ use inflector::cases::{pascalcase, snakecase};
 use quote::{__private::TokenStream, format_ident, quote};
 use std::io::Write;
 use super::types::IceType;
+use std::process::Command;
 
 
 struct UseStatements {
@@ -208,11 +209,6 @@ impl Module {
     }
 
     pub fn generate(&self, dest: &Path, mod_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        std::fs::create_dir_all(dest)?;
-        let mod_file = &dest.join(Path::new("mod.rs"));
-
-        let mut file = File::create(mod_file)?;
-
         let mut tokens = vec![];
         tokens.push(quote! {
             // This file has been generated.
@@ -264,7 +260,21 @@ impl Module {
             tokens.push(interface.generate(&self.full_name)?);
         }
 
-        match file.write_all(quote! { #(#tokens)* }.to_string().as_bytes()) {
+        let mod_token = quote! { #(#tokens)* };
+
+        std::fs::create_dir_all(dest)?;
+        let mod_file = &dest.join(Path::new("mod.rs")); 
+        let mut child = Command::new("rustfmt")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()?;
+        {
+            let stdin = child.stdin.as_mut().ok_or(ParsingError::new("Could not get stdin of rustfmt process"))?;
+            stdin.write_all(mod_token.to_string().as_bytes())?;
+        }    
+        let output = child.wait_with_output()?;
+        let mut file = File::create(mod_file)?;
+        match file.write_all(&output.stdout) {
             Ok(_) => Ok(()),
             Err(_) =>  Err(Box::new(ParsingError::new("Could not write file")))
         }
