@@ -77,13 +77,13 @@ impl Class {
 
         let optional_tokens = self.members.iter()
         .filter_map(|member| {
-            let id_token = &member.id;
-            let var_token = &member.r#type.token_from();
+            let id_token = &member.id;            
             match &member.r#type {
-                IceType::Optional(_, tag) => {
+                IceType::Optional(option_type, tag) => {
+                    let var_token = option_type.token();
                     Some(quote! {
                         #tag => {
-                            #id_token = #var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
+                            #id_token = Some(#var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?);
                         }
                     })
                 },

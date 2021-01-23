@@ -69,7 +69,7 @@ impl Enum {
                 fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
                 where Self: Sized {
                     let mut read = 0;
-                    let enum_value =  IceSize::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?.size;
+                    let enum_value = IceSize::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?.size;
                     *read_bytes = *read_bytes + read;
                     match #id_token::try_from(enum_value) {
                         Ok(enum_type) => Ok(enum_type),
