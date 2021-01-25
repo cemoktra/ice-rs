@@ -15,3 +15,4 @@ ice-rs = { path = "../../../" }
 
 [dependencies]
 ice-rs = { path = "../../../" }
+termion = "1.5.2"
