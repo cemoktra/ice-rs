@@ -10,6 +10,12 @@ pub struct TcpTransport {
     buffer: Vec<u8>
 }
 
+impl Drop for TcpTransport {
+    fn drop(&mut self) {
+        self.close_connection().expect("Could not drop TcpConnection");
+    }
+}
+
 impl TcpTransport {
     pub fn new(address: &str) -> Result<TcpTransport, Box<dyn std::error::Error>>
     {
