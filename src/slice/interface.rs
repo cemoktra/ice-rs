@@ -66,10 +66,14 @@ impl Interface {
             }
 
             impl #id_proxy_token {
-                pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
-                    let mut my_proxy = Self {
+                pub fn unchecked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
+                    Ok(Self {
                         proxy: proxy,
-                    };
+                    })
+                }
+
+                pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
+                    let mut my_proxy = Self::unchecked_cast(proxy)?;
             
                     if !my_proxy.ice_is_a()? {
                         return Err(Box::new(ProtocolError::new("ice_is_a() failed")));
