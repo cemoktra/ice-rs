@@ -43,6 +43,7 @@ The status can be seen in the number of supported [ZeroC Ice Demos](http://githu
 
 - Ice/minimal
 - Ice/optional
+- Ice/context (implicit context missing, see [Issue](https://github.com/cemoktra/ice-rs/issues/37))
 - IceGrid/simple
 
 Supported transports:

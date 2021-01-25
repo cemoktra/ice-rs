@@ -41,6 +41,9 @@ impl Function {
             quote! { &mut self }
         ];
         arg_tokens.extend(self.arguments.iter().map(|arg| arg.token()).collect::<Vec<_>>());
+        arg_tokens.push(quote! {
+            context: Option<HashMap<String, String>>
+        });
 
         Ok(quote! {
             fn #id_token (#(#arg_tokens),*) -> Result<#return_token, Box<dyn std::error::Error>>;
@@ -55,6 +58,9 @@ impl Function {
             quote! { &mut self }
         ];
         arg_tokens.extend(self.arguments.iter().map(|arg| arg.token()).collect::<Vec<_>>());
+        arg_tokens.push(quote! {
+            context: Option<HashMap<String, String>>
+        });
         let arg_require_result = self.arguments.iter().any(|arg| arg.out);
         let arg_serialize_input_tokens = self.arguments.iter().map(|arg| arg.serialize_input()).collect::<Vec<_>>();
         let arg_serialize_output_tokens = self.arguments.iter().map(|arg| arg.serialize_output()).collect::<Vec<_>>();
@@ -87,7 +93,7 @@ impl Function {
             fn #id_token (#(#arg_tokens),*) -> Result<#return_token, Box<dyn std::error::Error>> {
                 #bytes_token
                 #(#arg_serialize_input_tokens)*
-                #reply_token self.dispatch::<#throw_token>(&String::from(#ice_id_token), #mode, &Encapsulation::from(bytes))?;
+                #reply_token self.dispatch::<#throw_token>(&String::from(#ice_id_token), #mode, &Encapsulation::from(bytes), context)?;
                 #read_token
                 #(#arg_serialize_output_tokens)*
                 #returned_token

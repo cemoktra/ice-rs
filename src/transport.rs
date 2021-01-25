@@ -34,6 +34,18 @@ pub trait Transport {
         Ok(())
     }
 
+    fn close_connection(&mut self) -> Result<(), Box<dyn std::error::Error>>
+    {
+        let header = Header::new(4, 14);
+        let mut bytes = header.to_bytes()?;
+        let written = self.write(&mut bytes)?;
+        if written != header.message_size as usize {
+            return Err(Box::new(ProtocolError::new("TCP: Could not validate connection")))
+        }
+
+        Ok(())
+    }
+
     fn make_request(&mut self, request: &RequestData) -> Result<(), Box<dyn std::error::Error>>
     {
         let req_bytes = request.to_bytes()?;

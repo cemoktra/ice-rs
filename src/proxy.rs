@@ -1,3 +1,5 @@
+use std::{collections::HashMap, hash::Hash};
+
 use crate::{errors::*, properties::Properties};
 use crate::transport::Transport;
 use crate::tcp::TcpTransport;
@@ -5,6 +7,9 @@ use crate::ssl::SslTransport;
 use crate::protocol::{MessageType, ReplyData, RequestData, Identity, Encapsulation};
 use crate::encoding::FromBytes;
 use pest::Parser;
+use std::rc::Rc;
+use std::cell::RefCell;
+
 
 #[derive(Parser)]
 #[grammar = "proxystring.pest"]
@@ -12,11 +17,12 @@ pub struct ProxyParser;
 
 
 pub struct Proxy {
-    pub transport: Box<dyn Transport + 'static>,
+    pub transport: Rc<RefCell<dyn Transport + 'static>>,
     pub request_id: i32,
     pub ident: String,
     pub host: String,
-    pub port: i32
+    pub port: i32,
+    pub context: Option<HashMap<String, String>>
 }
 
 impl Proxy {
@@ -61,9 +67,9 @@ impl Proxy {
         }
 
         let address = &(host.to_owned() + ":" + port);
-        let transport: Box<dyn Transport> = match protocol {
-            "default" | "tcp" => Box::new(TcpTransport::new(address)?),
-            "ssl" => Box::new(SslTransport::new(address, properties)?),
+        let transport: Rc<RefCell<dyn Transport>> = match protocol {
+            "default" | "tcp" => Rc::new(RefCell::new(TcpTransport::new(address)?)),
+            "ssl" => Rc::new(RefCell::new(SslTransport::new(address, properties)?)),
             _ => return Err(Box::new(ProtocolError::new(&format!("Unsupported protocol: {}", protocol))))
         };
         Ok(Proxy {
@@ -71,11 +77,32 @@ impl Proxy {
             request_id: 0,
             ident: String::from(ident),
             host: String::from(host),
-            port: port.parse()?
+            port: port.parse()?,
+            context: None
         })
     }
 
-    pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation) -> RequestData {
+    pub fn ice_context(&mut self, context: HashMap<String, String>) -> Proxy {
+        Proxy {
+            transport: self.transport.clone(),
+            request_id: self.request_id,
+            ident: self.ident.clone(),
+            host: self.host.clone(),
+            port: self.port,
+            context: Some(context)
+        }
+    }
+
+    pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> RequestData {
+        let context = match context {
+            Some(context) => context,
+            None => {
+                match self.context.as_ref() {
+                    Some(context) => context.clone(),
+                    None => HashMap::new()
+                }
+            }
+        };
         self.request_id = self.request_id + 1;
         RequestData {
             request_id: self.request_id,
@@ -83,15 +110,16 @@ impl Proxy {
             facet: Vec::new(),
             operation: String::from(operation),
             mode: mode,
-            context: std::collections::HashMap::new(),
+            context: context,
             params: params.clone()
         }
     }
 
     pub fn make_request<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, request: &RequestData) -> Result<ReplyData, Box<dyn std::error::Error>>
     {
-        self.transport.make_request(request)?;
-        let reply = self.transport.read_message()?;
+        let mut tx = self.transport.borrow_mut();
+        tx.make_request(request)?;
+        let reply = tx.read_message()?;
         match reply {
             MessageType::Reply(_header, reply) => {
                 match reply.status {

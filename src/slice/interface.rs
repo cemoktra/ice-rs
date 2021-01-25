@@ -49,14 +49,14 @@ impl Interface {
             }
 
             pub struct #id_proxy_token {
-                proxy: Proxy
+                pub proxy: Proxy
             }
 
             impl IceObject for #id_proxy_token {
                 const TYPE_ID: &'static str = #type_id_token;
-                fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, op: &str, mode: u8, params: &Encapsulation) -> Result<ReplyData, Box<dyn std::error::Error>> {
+                fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, op: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> Result<ReplyData, Box<dyn std::error::Error>> {
                     let id = String::from(self.proxy.ident.clone());
-                    let req = self.proxy.create_request(&id, op, mode, params);
+                    let req = self.proxy.create_request(&id, op, mode, params, context);
                     self.proxy.make_request::<T>(&req)
                 }
             }
@@ -66,10 +66,14 @@ impl Interface {
             }
 
             impl #id_proxy_token {
-                pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
-                    let mut my_proxy = Self {
+                pub fn unchecked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
+                    Ok(Self {
                         proxy: proxy,
-                    };
+                    })
+                }
+
+                pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
+                    let mut my_proxy = Self::unchecked_cast(proxy)?;
             
                     if !my_proxy.ice_is_a()? {
                         return Err(Box::new(ProtocolError::new("ice_is_a() failed")));

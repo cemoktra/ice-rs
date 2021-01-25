@@ -17,6 +17,12 @@ pub struct SslTransport {
     buffer: Vec<u8>
 }
 
+impl Drop for SslTransport {
+    fn drop(&mut self) {
+        self.close_connection().expect("Could not drop SslConnection");
+    }
+}
+
 fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut buffer = vec![];
     let mut file = File::open(file_path)?;

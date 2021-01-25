@@ -1,0 +1,10 @@
+Context.Proxy=context:default -h localhost -p 10000
+
+IceSSL.DefaultDir=../../../certs
+IceSSL.CAs=cacert.pem
+IceSSL.CertFile=client.p12
+IceSSL.Password=password
+IceSSL.Keychain=../../../certs/client.keychain
+IceSSL.KeychainPassword=password
+
+# Ice.ImplicitContext=Shared
