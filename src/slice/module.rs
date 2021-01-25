@@ -172,6 +172,8 @@ impl Module {
 
             for item in &self.interfaces {
                 for func in &item.functions {
+                    use_statements.use_crate(quote! { use std::collections::HashMap });
+
                     for arg in &func.arguments {
                         match &arg.r#type {
                             IceType::CustomType(name) => {

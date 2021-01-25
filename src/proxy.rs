@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{errors::*, properties::Properties};
 use crate::transport::Transport;
 use crate::tcp::TcpTransport;
@@ -75,7 +77,7 @@ impl Proxy {
         })
     }
 
-    pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation) -> RequestData {
+    pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> RequestData {
         self.request_id = self.request_id + 1;
         RequestData {
             request_id: self.request_id,
@@ -83,7 +85,7 @@ impl Proxy {
             facet: Vec::new(),
             operation: String::from(operation),
             mode: mode,
-            context: std::collections::HashMap::new(),
+            context: context.unwrap_or(std::collections::HashMap::new()),
             params: params.clone()
         }
     }

@@ -41,10 +41,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         match key {
                             termion::event::Key::Char('x') => return Ok(()),
                             termion::event::Key::Char('t') => {
-                                hello_prx.say_hello()?
+                                hello_prx.say_hello(None)?
                             },
                             termion::event::Key::Char('s') => {
-                                hello_prx.shutdown()?
+                                hello_prx.shutdown(None)?
                             },
                             termion::event::Key::Char('?') => {
                                 menu()

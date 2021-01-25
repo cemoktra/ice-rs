@@ -8,5 +8,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proxy = comm.string_to_proxy("hello:default -h localhost -p 10000")?;
     let mut hello_prx = HelloPrx::checked_cast(proxy)?;
 
-    hello_prx.say_hello()
+    hello_prx.say_hello(None)
 }

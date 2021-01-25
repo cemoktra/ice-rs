@@ -9,10 +9,10 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
     let mut contact_db = ContactDBPrx::checked_cast(proxy)?;
 
     let john_number = Some(String::from("123-456-7890"));
-    contact_db.add_contact(&String::from("john"), Some(NumberType::HOME), john_number.clone(), Some(0))?;
+    contact_db.add_contact(&String::from("john"), Some(NumberType::HOME), john_number.clone(), Some(0), None)?;
 
     print!("Checking john ... ");
-    let number = contact_db.query_number(&String::from("john"))?;    
+    let number = contact_db.query_number(&String::from("john"), None)?;
     if !number.is_some() {
         print!("number is incorrect ");
         return Ok(())
@@ -23,7 +23,7 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut dial_group = None;
-    contact_db.query_dialgroup(&String::from("john"), &mut dial_group)?;
+    contact_db.query_dialgroup(&String::from("john"), &mut dial_group, None)?;
 
     if !dial_group.is_some() || dial_group.unwrap() != 0 {
         print!("dialgroup is incorrect ");
@@ -34,9 +34,9 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
 
 
     let steve_number = Some(String::from("234-567-8901"));
-    contact_db.add_contact(&String::from("steve"), None, steve_number.clone(), Some(1))?;
+    contact_db.add_contact(&String::from("steve"), None, steve_number.clone(), Some(1), None)?;
     print!("Checking steve ... ");
-    let number = contact_db.query_number(&String::from("steve"))?;    
+    let number = contact_db.query_number(&String::from("steve"), None)?;
     if !number.is_some() {
         print!("number is incorrect ");
         return Ok(())
@@ -45,7 +45,7 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
         print!("number is incorrect ");
         return Ok(())
     }
-    let info = contact_db.query(&String::from("steve"))?;
+    let info = contact_db.query(&String::from("steve"), None)?;
     if info.r#type != Some(NumberType::HOME) {
         print!("info is incorrect ");
         return Ok(())
@@ -59,9 +59,9 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
 
 
     let frank_number = Some(String::from("345-678-9012"));
-    contact_db.add_contact(&String::from("frank"), Some(NumberType::CELL), frank_number.clone(), None)?;
+    contact_db.add_contact(&String::from("frank"), Some(NumberType::CELL), frank_number.clone(), None, None)?;
     print!("Checking frank ... ");
-    let number = contact_db.query_number(&String::from("frank"))?;    
+    let number = contact_db.query_number(&String::from("frank"), None)?;    
     if !number.is_some() {
         print!("number is incorrect ");
         return Ok(())
@@ -70,7 +70,7 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
         print!("number is incorrect ");
         return Ok(())
     }
-    let info = contact_db.query(&String::from("frank"))?;
+    let info = contact_db.query(&String::from("frank"), None)?;
     if info.dial_group.is_some() {
         print!("info is incorrect ");
         return Ok(())
@@ -83,14 +83,14 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
     println!("ok");
 
 
-    contact_db.add_contact(&String::from("anne"), Some(NumberType::OFFICE), None, Some(2))?;
+    contact_db.add_contact(&String::from("anne"), Some(NumberType::OFFICE), None, Some(2), None)?;
     print!("Checking anne ... ");
-    let number = contact_db.query_number(&String::from("anne"))?;    
+    let number = contact_db.query_number(&String::from("anne"), None)?;
     if number.is_some() {
         print!("number is incorrect ");
         return Ok(())
     }
-    let info = contact_db.query(&String::from("anne"))?;
+    let info = contact_db.query(&String::from("anne"), None)?;
     if info.number.is_some() {
         print!("info is incorrect ");
         return Ok(())
@@ -101,8 +101,8 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let anne_number = Some(String::from("456-789-0123"));
-    contact_db.update_contact(&String::from("anne"), None, anne_number.clone(), None)?;
-    let info = contact_db.query(&String::from("anne"))?;
+    contact_db.update_contact(&String::from("anne"), None, anne_number.clone(), None, None)?;
+    let info = contact_db.query(&String::from("anne"), None)?;
     if info.number != anne_number || info.r#type != Some(NumberType::OFFICE) || info.dial_group != Some(2) {
         print!("info is incorrect ");
         return Ok(())
@@ -110,7 +110,7 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
 
     println!("ok");
 
-    contact_db.shutdown()
+    contact_db.shutdown(None)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
