@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "ice-rs"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "Inflector",
  "clap",
