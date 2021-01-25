@@ -49,7 +49,7 @@ impl Interface {
             }
 
             pub struct #id_proxy_token {
-                proxy: Proxy
+                pub proxy: Proxy
             }
 
             impl IceObject for #id_proxy_token {

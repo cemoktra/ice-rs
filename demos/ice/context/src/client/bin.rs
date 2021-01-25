@@ -36,7 +36,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     context_prx.call(Some(context))?;
                 },
                 termion::event::Key::Char('3') => {
-                    println!("No supported yet");
+                    let mut context = std::collections::HashMap::new();
+                    context.insert(String::from("type"), String::from("Per-Proxy"));
+                    let proxy2 = context_prx.proxy.ice_context(context);
+                    let mut context_prx2 = ContextPrx::unchecked_cast(proxy2)?;
+                    context_prx2.call(None)?;
                 },
                 termion::event::Key::Char('4') => {
                     println!("No supported yet");
