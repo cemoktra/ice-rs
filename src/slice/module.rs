@@ -135,8 +135,9 @@ impl Module {
                         IceType::CustomType(name) => {
                             let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                             if !use_statement.eq(&self.snake_name()) {
-                                let id = format_ident!("use crate::{}::{}::*", super_mod, use_statement);
-                                use_statements.use_crate(quote! { #id });
+                                let super_token = format_ident!("{}", super_mod);
+                                let use_token = format_ident!("{}", use_statement);
+                                use_statements.use_crate(quote! { use crate::#super_token::#use_token::* });
                             }
                         }
                         _ => {}
@@ -154,8 +155,9 @@ impl Module {
                         IceType::CustomType(name) => {
                             let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                             if !use_statement.eq(&self.snake_name()) {
-                                let id = format_ident!("use crate::{}::{}::*", super_mod, use_statement);
-                                use_statements.use_crate(quote! { #id });
+                                let super_token = format_ident!("{}", super_mod);
+                                let use_token = format_ident!("{}", use_statement);
+                                use_statements.use_crate(quote! { use crate::#super_token::#use_token::* });
                             }
                         }
                         _ => {}
@@ -179,9 +181,9 @@ impl Module {
                             IceType::CustomType(name) => {
                                 let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                                 if !use_statement.eq(&self.snake_name()) {
-
-                                    let id = format_ident!("use crate::{}::{}::*", super_mod, use_statement);
-                                    use_statements.use_crate(quote! { #id });
+                                    let super_token = format_ident!("{}", super_mod);
+                                    let use_token = format_ident!("{}", use_statement);
+                                    use_statements.use_crate(quote! { use crate::#super_token::#use_token::* });
                                 }
                             }
                             _ => {}
@@ -194,8 +196,9 @@ impl Module {
                                 IceType::CustomType(name) => {
                                     let use_statement = self.type_map.as_ref().borrow().get(name).unwrap().clone();
                                     if !use_statement.eq(&self.snake_name()) {
-                                        let id = format_ident!("use crate::{}::{}::*", super_mod, use_statement);
-                                        use_statements.use_crate(quote! { #id });
+                                        let super_token = format_ident!("{}", super_mod);
+                                        let use_token = format_ident!("{}", use_statement);
+                                        use_statements.use_crate(quote! { use crate::#super_token::#use_token::* });
                                     }
                                 }
                                 _ => {}

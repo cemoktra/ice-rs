@@ -70,7 +70,7 @@ impl Exception {
             impl ToBytes for #id_token {
                 fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
                     let mut bytes = Vec::new();
-                    #(#member_to_bytes_tokens);*
+                    #(#member_to_bytes_tokens);*;
                     Ok(bytes)
                 }
             }

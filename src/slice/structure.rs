@@ -43,7 +43,7 @@ impl Struct {
             impl ToBytes for #id_token {
                 fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
                     let mut bytes = Vec::new();
-                    #(#member_to_bytes_tokens);*
+                    #(#member_to_bytes_tokens);*;
                     Ok(bytes)
                 }
             }
@@ -53,7 +53,7 @@ impl Struct {
                 where Self: Sized {
                     let mut read = 0;
                     let obj = Self {
-                        #(#member_from_bytes_tokens);*
+                        #(#member_from_bytes_tokens),*
                     };
                     *read_bytes = *read_bytes + read;
                     Ok(obj)
