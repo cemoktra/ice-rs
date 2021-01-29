@@ -93,8 +93,8 @@ pub struct ProxyData {
 #[derive(Debug)]
 pub enum EndPointType {
     WellKnownObject(String),
-    TCP(TCPEndpointData),
-    SSL(SSLEndpointData),
+    TCP(EndpointData),
+    SSL(EndpointData),
 }
 
 #[derive(Debug)]
@@ -105,16 +105,7 @@ pub struct LocatorResult {
 }
 
 #[derive(Debug)]
-pub struct TCPEndpointData
-{
-    pub host: String,
-    pub port: i32,
-    pub timeout: i32,
-    pub compress: bool
-}
-
-#[derive(Debug)]
-pub struct SSLEndpointData
+pub struct EndpointData
 {
     pub host: String,
     pub port: i32,

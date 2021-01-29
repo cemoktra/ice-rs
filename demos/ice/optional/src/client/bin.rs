@@ -4,7 +4,7 @@ mod gen;
 use crate::gen::demo::{ContactDB,ContactDBPrx,NumberType};
 
 
-fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
+fn run(comm: &mut Communicator) -> Result<(), Box<dyn std::error::Error>> {
     let proxy = comm.property_to_proxy("ContactDB.Proxy")?;
     let mut contact_db = ContactDBPrx::checked_cast(proxy)?;
 
@@ -61,7 +61,7 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
     let frank_number = Some(String::from("345-678-9012"));
     contact_db.add_contact(&String::from("frank"), Some(NumberType::CELL), frank_number.clone(), None, None)?;
     print!("Checking frank ... ");
-    let number = contact_db.query_number(&String::from("frank"), None)?;    
+    let number = contact_db.query_number(&String::from("frank"), None)?;
     if !number.is_some() {
         print!("number is incorrect ");
         return Ok(())
@@ -114,6 +114,6 @@ fn run(comm: &Communicator) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let comm = ice_rs::communicator::initialize("config.client");
-    run(&comm)
+    let mut comm = ice_rs::communicator::initialize("config.client")?;
+    run(&mut comm)
 }

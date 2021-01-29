@@ -16,7 +16,7 @@ fn menu() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let comm = ice_rs::communicator::initialize("config.client");
+    let mut comm = ice_rs::communicator::initialize("config.client")?;
     let proxy = comm.property_to_proxy("Context.Proxy")?;
     let mut context_prx = ContextPrx::unchecked_cast(proxy)?;
 
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 termion::event::Key::Char('?') => {
                     menu()
                 },
-                _ => {},                
+                _ => {},
             }
         }
     }

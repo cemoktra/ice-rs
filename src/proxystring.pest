@@ -1,9 +1,13 @@
-proxystring = { SOI ~ ident ~ ":" ~ endpoint ~ EOI }
+proxystring = { SOI ~ (direct_proxy | indirect_proxy) ~ EOI }
 
 WHITESPACE = _{ " " }
 
-ident = @{ (!":" ~ ANY)* }
+direct_proxy = { ident ~ ":" ~ endpoint }
 
+indirect_proxy = { ident ~ adapter? }
+keyword_at = { "@" }
+ident = @{ (!":" ~ !keyword_at ~ ANY)* }
+adapter = { keyword_at ~ ident }
 hostname = @{ (ASCII_ALPHA | "-")* }
 ip = {
 	ASCII_DIGIT{1,3} ~ "." ~

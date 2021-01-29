@@ -1,4 +1,4 @@
-use crate::{protocol::{Encapsulation, EndPointType, Header, Identity, LocatorResult, ProxyData, ReplyData, RequestData, SSLEndpointData, TCPEndpointData, Version}};
+use crate::{protocol::{Encapsulation, EndPointType, Header, Identity, LocatorResult, ProxyData, ReplyData, RequestData, EndpointData, Version}};
 use crate::errors::*;
 use std::convert::TryInto;
 use std::collections::HashMap;
@@ -125,7 +125,7 @@ impl ToBytes for IceSize {
             let mut bytes = vec![255];
             bytes.extend(self.size.to_bytes()?);
             Ok(bytes)
-        }    
+        }
     }
 }
 
@@ -134,7 +134,7 @@ impl FromBytes for IceSize {
     where Self: Sized {
         if bytes.len() < 1 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read IceSize")));
-        }   
+        }
         else if bytes[0] == 255 {
             if bytes.len() < 5 {
                 return Err(Box::new(ProtocolError::new("Not enough bytes to read IceSize")));
@@ -148,7 +148,7 @@ impl FromBytes for IceSize {
             Ok(IceSize {
                 size: u8::from_bytes(bytes, read_bytes)? as i32
             })
-        }   
+        }
     }
 }
 
@@ -453,7 +453,7 @@ impl ToBytes for RequestData {
         buffer.extend(self.context.to_bytes()?);
         buffer.extend(self.params.to_bytes()?);
 
-        Ok(buffer)        
+        Ok(buffer)
 
     }
 }
@@ -519,7 +519,7 @@ impl FromBytes for ReplyData {
             // }
             7 => {
                 Err(Box::new(
-                    RemoteException { 
+                    RemoteException {
                         cause: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
                     }
                 ))
@@ -555,7 +555,7 @@ impl FromBytes for Header {
         let magic = String::from_utf8(bytes[0..4].to_vec())?;
         if magic != "IceP" {
             return Err(Box::new(ProtocolError::new(&format!("Wrong magic! Expected IceP but found {}", magic))));
-        }        
+        }
         let mut read: i32 = 4;
         let protocol_major = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
         let protocol_minor = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -583,7 +583,7 @@ impl<T: ToBytes> ToBytes for Option<T> {
     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut bytes = Vec::new();
         match self {
-            Some(value) => { 
+            Some(value) => {
                 // TODO: use optional flag here
                 bytes.extend((11 as u8).to_bytes()?);
                 bytes.extend(value.to_bytes()?);
@@ -663,7 +663,7 @@ impl FromBytes for Version {
     }
 }
 
-impl ToBytes for TCPEndpointData {
+impl ToBytes for EndpointData {
     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
     {
         let mut buffer: Vec<u8> = Vec::new();
@@ -675,36 +675,10 @@ impl ToBytes for TCPEndpointData {
     }
 }
 
-impl FromBytes for TCPEndpointData {
+impl FromBytes for EndpointData {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
         let mut read = 0;
-        let endpoint = TCPEndpointData {
-            host: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            port: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            timeout: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            compress: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
-        };
-        *read_bytes = *read_bytes + read;
-        Ok(endpoint)
-    }
-}
-
-impl ToBytes for SSLEndpointData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
-    {
-        let mut buffer: Vec<u8> = Vec::new();
-        buffer.extend(self.host.to_bytes()?);
-        buffer.extend(self.port.to_bytes()?);
-        buffer.extend(self.timeout.to_bytes()?);
-        buffer.extend(self.compress.to_bytes()?);
-        Ok(buffer)
-    }
-}
-
-impl FromBytes for SSLEndpointData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut read = 0;
-        let endpoint = SSLEndpointData {
+        let endpoint = EndpointData {
             host: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
             port: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
             timeout: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
@@ -730,7 +704,7 @@ impl FromBytes for LocatorResult {
             1 => {
                 let _unsued = i16::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
                 let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-                let tcp = TCPEndpointData::from_bytes(&encapsulation.data[0..encapsulation.data.len()], &mut read)?;
+                let tcp = EndpointData::from_bytes(&encapsulation.data[0..encapsulation.data.len()], &mut read)?;
                 *read_bytes = *read_bytes + read;
                 Ok(LocatorResult {
                     proxy_data: proxy_data,
@@ -741,7 +715,7 @@ impl FromBytes for LocatorResult {
             2 => {
                 let _unsued = i16::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
                 let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-                let ssl = SSLEndpointData::from_bytes(&encapsulation.data[0..encapsulation.data.len()], &mut read)?;
+                let ssl = EndpointData::from_bytes(&encapsulation.data[0..encapsulation.data.len()], &mut read)?;
                 *read_bytes = *read_bytes + read;
                 Ok(LocatorResult {
                     proxy_data: proxy_data,
@@ -761,7 +735,7 @@ impl FromBytes for LocatorResult {
             _ => {
                 Err(Box::new(ProtocolError::new("Unsupported endpoint type")))
             }
-        } 
+        }
     }
 }
 
@@ -933,7 +907,7 @@ mod test {
             body: Encapsulation::empty()
         };
         let bytes = reply.to_bytes().expect("Cannot encode test reply");
-        let decoded = ReplyData::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test reply");        
+        let decoded = ReplyData::from_bytes(&bytes, &mut read_bytes).expect("Cannot decode test reply");
         assert_eq!(11, read_bytes);
         assert_eq!(reply.request_id, decoded.request_id);
         assert_eq!(reply.status, decoded.status);

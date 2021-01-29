@@ -4,7 +4,7 @@ use crate::encoding::{ToBytes, FromBytes};
 pub trait Transport {
     fn read(&mut self) -> std::io::Result<&[u8]>;
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>;
-    
+
     fn read_message(&mut self) -> Result<MessageType, Box<dyn std::error::Error>>
     {
         let buffer = self.read()?;

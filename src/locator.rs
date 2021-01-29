@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 
-use crate::{errors::ProtocolError, properties::Properties, protocol::{Encapsulation, Identity, LocatorResult, RequestData}};
+use crate::{errors::ProtocolError, protocol::{Encapsulation, EndPointType, Identity, LocatorResult, RequestData}, proxy_parser::{DirectProxyData, IndirectProxyData}};
 use crate::encoding::{ToBytes,FromBytes};
 use crate::proxy::Proxy;
 
@@ -11,11 +11,40 @@ pub struct Locator {
 }
 
 impl Locator {
-    pub fn new(proxy_string: &str, properties: &Properties) -> Result<Locator, Box<dyn std::error::Error>> {
-        Ok(Locator {
-            proxy: Proxy::new(proxy_string, properties)?,
+    pub fn from(proxy: Proxy) -> Locator {
+        Locator {
+            proxy: proxy,
             request_id: 0
-        })
+        }
+    }
+
+    pub fn locate(&mut self, proxy_data: IndirectProxyData) -> Result<DirectProxyData, Box<dyn std::error::Error>> {
+        match proxy_data.adapter {
+            Some(adapter) => {
+                let result = self.find_adapter_by_id(&adapter)?;
+                Ok(DirectProxyData {
+                    ident: result.proxy_data.id,
+                    endpoint: result.endpoint
+                })
+            }
+            None => {
+                let obj_result = self.find_object_by_id(&proxy_data.ident)?;
+                match obj_result.endpoint {
+                    EndPointType::WellKnownObject(object) => {
+                        let adapter_result = self.find_adapter_by_id(&object)?;
+                        Ok(DirectProxyData {
+                            ident: obj_result.proxy_data.id,
+                            endpoint: adapter_result.endpoint
+                        })
+                    }
+                    _ => Ok(DirectProxyData {
+                        ident: obj_result.proxy_data.id,
+                        endpoint: obj_result.endpoint
+                    })
+                }
+
+            }
+        }
     }
 
     pub fn find_object_by_id(&mut self, req: &str) -> Result<LocatorResult, Box<dyn std::error::Error>> {
@@ -50,7 +79,7 @@ impl Locator {
             params: Encapsulation::from(bytes)
         };
         let reply = self.proxy.make_request::<ProtocolError>(&req_data)?;
-        
+
         let mut read = 0;
         LocatorResult::from_bytes(&reply.body.data[read as usize..reply.body.data.len()], &mut read)
     }
