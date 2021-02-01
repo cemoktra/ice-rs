@@ -1,13 +1,15 @@
+use async_trait::async_trait;
 use std::io::prelude::*;
-use std::net::TcpStream;
-use openssl::ssl::{SslConnector, SslMethod, SslStream, SslVerifyMode};
+use tokio::{io::AsyncReadExt, net::TcpStream};
+use tokio_openssl::SslStream;
+use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 use openssl::x509::*;
 use openssl::pkcs12::*;
 use openssl::pkey::*;
 use std::fs::File;
 use std::path::Path;
+use tokio::io::AsyncWriteExt;
 
-use crate::protocol::MessageType;
 use crate::transport::Transport;
 use crate::errors::*;
 use crate::properties::Properties;
@@ -19,18 +21,18 @@ pub struct SslTransport {
 
 impl Drop for SslTransport {
     fn drop(&mut self) {
-        self.close_connection().expect("Could not drop SslConnection");
+        // self.close_connection().expect("Could not drop SslConnection");
     }
 }
 
-fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
     let mut buffer = vec![];
     let mut file = File::open(file_path)?;
     file.read_to_end(&mut buffer)?;
     Ok(buffer)
 }
 
-fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
+fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error + Sync + Send>> {
     let content = read_file(file_path)?;
     match X509::from_pem(&content) {
         Ok(cert) => Ok(cert),
@@ -38,7 +40,7 @@ fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
     }
 }
 
-fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error>> {
+fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error + Sync + Send>> {
     let content = read_file(file_path)?;
     match PKey::private_key_from_pem(&content) {
         Ok(cert) => Ok(cert),
@@ -46,7 +48,7 @@ fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error
     }
 }
 
-fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn std::error::Error>> {
+fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn std::error::Error + Sync + Send>> {
     let content = read_file(file_path)?;
     match Pkcs12::from_der(&content) {
         Ok(pkcs12) => {
@@ -60,7 +62,7 @@ fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn
 }
 
 impl SslTransport {
-    pub fn new(address: &str, properties: &Properties) -> Result<SslTransport, Box<dyn std::error::Error>>
+    pub async fn new(address: &str, properties: &Properties) -> Result<SslTransport, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut builder = SslConnector::builder(SslMethod::tls())?;
         let mut store_builder = store::X509StoreBuilder::new()?;
@@ -107,30 +109,26 @@ impl SslTransport {
         }
 
         let connector = builder.build();
-        let stream = TcpStream::connect(address)?;
+        let stream = TcpStream::connect(address).await?;
         let split = address.split(":").collect::<Vec<&str>>();
-        let host = split.first().unwrap();
+        let _host = split.first().unwrap();
 
-        let mut transport = SslTransport {
-            stream: connector.connect(host, stream)?,
+        Ok(SslTransport {
+            stream: SslStream::new(connector.configure()?.into_ssl(address)?, stream)?,
             buffer: vec![0; 4096]
-        };
-
-        match transport.read_message()? {
-            MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError::new("SSL: Failed to validate new connection")))
-        }
+        })
     }
 }
 
+#[async_trait]
 impl Transport for SslTransport {
-    fn read(&mut self) -> std::io::Result<&[u8]> {
-        let bytes = self.stream.read(&mut self.buffer)?;
+    async fn read(&mut self) -> tokio::io::Result<&[u8]> {
+        let bytes = self.stream.read_buf(&mut self.buffer).await?;
         Ok(&self.buffer[0..bytes])
     }
 
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>
+    async fn write(&mut self, buf: &mut [u8]) -> tokio::io::Result<usize>
     {
-        self.stream.write(&buf)
+        self.stream.write(buf).await
     }
 }

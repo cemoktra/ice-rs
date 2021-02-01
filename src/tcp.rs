@@ -1,9 +1,7 @@
-use std::io::prelude::*;
-use std::net::TcpStream;
+use async_trait::async_trait;
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream};
 
-use crate::protocol::MessageType;
 use crate::transport::Transport;
-use crate::errors::*;
 
 pub struct TcpTransport {
     stream: TcpStream,
@@ -12,33 +10,29 @@ pub struct TcpTransport {
 
 impl Drop for TcpTransport {
     fn drop(&mut self) {
-        self.close_connection().expect("Could not drop TcpConnection");
+        // self.close_connection().await.expect("Could not drop TcpConnection");
     }
 }
 
 impl TcpTransport {
-    pub fn new(address: &str) -> Result<TcpTransport, Box<dyn std::error::Error>>
+    pub async fn new(address: &str) -> Result<TcpTransport, Box<dyn std::error::Error + Sync + Send>>
     {
-        let mut transport = TcpTransport {
-            stream: TcpStream::connect(address)?,
+        Ok(TcpTransport {
+            stream: TcpStream::connect(address).await?,
             buffer: vec![0; 4096]
-        };
-
-        match transport.read_message()? {
-            MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError::new("TCP: Failed to validate new connection")))
-        }
+        })
     }
 }
 
+#[async_trait]
 impl Transport for TcpTransport {
-    fn read(&mut self) -> std::io::Result<&[u8]> {
-        let bytes = self.stream.read(&mut self.buffer)?;
+    async fn read(&mut self) -> tokio::io::Result<&[u8]> {
+        let bytes = self.stream.read(&mut self.buffer).await?;
         Ok(&self.buffer[0..bytes])
     }
 
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>
+    async fn write(&mut self, buf: &mut [u8]) -> tokio::io::Result<usize>
     {
-        self.stream.write(&buf)
+        self.stream.write(buf).await
     }
 }

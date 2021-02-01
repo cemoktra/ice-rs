@@ -16,13 +16,13 @@ pub struct IceSize {
 /// The `ToBytes` trait needs to be implemented by all types
 /// that need to be encoded.
 pub trait ToBytes {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>;
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>;
 }
 
 /// The `FromBytes` trait needs to be implemented by all types
 /// that need to be decoded.
 pub trait FromBytes {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> where Self: Sized;
 }
 
 pub trait OptionalType {
@@ -76,7 +76,7 @@ impl OptionalFlag {
 
 // BASIC ENCODING FUNCTIONS
 impl FromBytes for SliceFlags {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         if bytes.len() < 1 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read SliceFlags")));
@@ -95,7 +95,7 @@ impl FromBytes for SliceFlags {
 }
 
 impl ToBytes for OptionalFlag {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let tag_bits = self.r#type & 7;
         let type_bits = self.tag << 3;
         Ok(vec![tag_bits | type_bits])
@@ -103,7 +103,7 @@ impl ToBytes for OptionalFlag {
 }
 
 impl FromBytes for OptionalFlag {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         if bytes.len() < 1 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read OptionalFlag")));
@@ -118,7 +118,7 @@ impl FromBytes for OptionalFlag {
 }
 
 impl ToBytes for IceSize {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         if self.size < 255 {
             Ok(vec![self.size as u8])
         } else {
@@ -130,7 +130,7 @@ impl ToBytes for IceSize {
 }
 
 impl FromBytes for IceSize {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         if bytes.len() < 1 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read IceSize")));
@@ -153,7 +153,7 @@ impl FromBytes for IceSize {
 }
 
 impl ToBytes for str {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         bytes.extend(self.as_bytes());
         Ok(bytes)
@@ -161,7 +161,7 @@ impl ToBytes for str {
 }
 
 impl ToBytes for String {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         bytes.extend(self.as_bytes());
         Ok(bytes)
@@ -169,7 +169,7 @@ impl ToBytes for String {
 }
 
 impl FromBytes for String {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let mut read = 0;
         let size = IceSize::from_bytes(bytes, &mut read)?.size;
@@ -181,7 +181,7 @@ impl FromBytes for String {
 
 
 impl<T: ToBytes, U: ToBytes> ToBytes for HashMap<T, U> {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         for (key, value) in self {
             bytes.extend(key.to_bytes()?);
@@ -192,7 +192,7 @@ impl<T: ToBytes, U: ToBytes> ToBytes for HashMap<T, U> {
 }
 
 impl<T: FromBytes + Eq + Hash, U: FromBytes> FromBytes for HashMap<T, U> {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let mut read = 0;
         let size = IceSize::from_bytes(bytes, &mut read)?.size;
@@ -210,7 +210,7 @@ impl<T: FromBytes + Eq + Hash, U: FromBytes> FromBytes for HashMap<T, U> {
 
 impl<T: ToBytes> ToBytes for Vec<T>
 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let mut bytes = IceSize{size: self.len() as i32}.to_bytes()?;
         for item in self {
             bytes.extend(item.to_bytes()?);
@@ -221,7 +221,7 @@ impl<T: ToBytes> ToBytes for Vec<T>
 
 impl<T: FromBytes> FromBytes for Vec<T>
 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let mut read = 0;
         let size = IceSize::from_bytes(bytes, &mut read)?.size;
@@ -236,13 +236,13 @@ impl<T: FromBytes> FromBytes for Vec<T>
 }
 
 impl ToBytes for u8 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(vec![*self])
     }
 }
 
 impl FromBytes for u8 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         *read_bytes = *read_bytes + 1;
         Ok(bytes[0])
@@ -250,13 +250,13 @@ impl FromBytes for u8 {
 }
 
 impl ToBytes for i16 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for i16 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let size = std::mem::size_of::<i16>();
         if bytes.len() < size {
@@ -273,13 +273,13 @@ impl FromBytes for i16 {
 }
 
 impl ToBytes for i32 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for i32 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let size = std::mem::size_of::<i32>();
         if bytes.len() < size {
@@ -296,13 +296,13 @@ impl FromBytes for i32 {
 }
 
 impl ToBytes for i64 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for i64 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let size = std::mem::size_of::<i64>();
         if bytes.len() < size {
@@ -319,13 +319,13 @@ impl FromBytes for i64 {
 }
 
 impl ToBytes for f32 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for f32 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let size = std::mem::size_of::<f32>();
         if bytes.len() < size {
@@ -342,13 +342,13 @@ impl FromBytes for f32 {
 }
 
 impl ToBytes for f64 {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(self.to_le_bytes().to_vec())
     }
 }
 
 impl FromBytes for f64 {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let size = std::mem::size_of::<f64>();
         if bytes.len() < size {
@@ -365,13 +365,13 @@ impl FromBytes for f64 {
 }
 
 impl ToBytes for bool {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         Ok(vec![if *self { 1 } else { 0 }])
     }
 }
 
 impl FromBytes for bool {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         if bytes.len() < 1 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read bool")));
@@ -384,7 +384,7 @@ impl FromBytes for bool {
 
 // PROTOCOL STRUCT AS/FROM BYTES
 impl ToBytes for Identity {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.name.to_bytes()?);
@@ -394,7 +394,7 @@ impl ToBytes for Identity {
 }
 
 impl FromBytes for Identity {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read = 0;
         let name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
         let category = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -407,7 +407,7 @@ impl FromBytes for Identity {
 }
 
 impl ToBytes for Encapsulation {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(&self.size.to_le_bytes());
@@ -421,7 +421,7 @@ impl ToBytes for Encapsulation {
 }
 
 impl FromBytes for Encapsulation {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read: i32 = 0;
         if bytes.len() < 6 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read Encapsulation")));
@@ -442,7 +442,7 @@ impl FromBytes for Encapsulation {
 }
 
 impl ToBytes for RequestData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.request_id.to_bytes()?);
@@ -459,7 +459,7 @@ impl ToBytes for RequestData {
 }
 
 impl FromBytes for RequestData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read = 0;
         let request_id = i32::from_bytes(bytes, &mut read)?;
         let id = Identity::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -484,7 +484,7 @@ impl FromBytes for RequestData {
 
 
 impl ToBytes for ReplyData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.request_id.to_bytes()?);
@@ -496,7 +496,7 @@ impl ToBytes for ReplyData {
 }
 
 impl FromBytes for ReplyData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read: i32 = 0;
         if bytes.len() < 11 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read ReplyData")));
@@ -530,7 +530,7 @@ impl FromBytes for ReplyData {
 }
 
 impl ToBytes for Header {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.magic.as_bytes());
@@ -547,7 +547,7 @@ impl ToBytes for Header {
 }
 
 impl FromBytes for Header {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         if bytes.len() < 14 {
             return Err(Box::new(ProtocolError::new("Not enough bytes to read Header")));
         }
@@ -580,7 +580,7 @@ impl FromBytes for Header {
 }
 
 impl<T: ToBytes> ToBytes for Option<T> {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let mut bytes = Vec::new();
         match self {
             Some(value) => {
@@ -595,7 +595,7 @@ impl<T: ToBytes> ToBytes for Option<T> {
 }
 
 impl<T: FromBytes> FromBytes for Option<T> {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         if bytes.len() > 0 {
             let mut read: i32 = 0;
             let _flag = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -609,7 +609,7 @@ impl<T: FromBytes> FromBytes for Option<T> {
 }
 
 impl ToBytes for ProxyData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
         let mut bytes = Vec::new();
 
         bytes.extend(self.id.to_bytes()?);
@@ -624,7 +624,7 @@ impl ToBytes for ProxyData {
 }
 
 impl FromBytes for ProxyData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
         let mut read: i32 = 0;
         let result = ProxyData {
@@ -641,7 +641,7 @@ impl FromBytes for ProxyData {
 }
 
 impl ToBytes for Version {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.major.to_bytes()?);
@@ -651,7 +651,7 @@ impl ToBytes for Version {
 }
 
 impl FromBytes for Version {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read = 0;
         let major = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
         let minor = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
@@ -664,7 +664,7 @@ impl FromBytes for Version {
 }
 
 impl ToBytes for EndpointData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut buffer: Vec<u8> = Vec::new();
         buffer.extend(self.host.to_bytes()?);
@@ -676,7 +676,7 @@ impl ToBytes for EndpointData {
 }
 
 impl FromBytes for EndpointData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read = 0;
         let endpoint = EndpointData {
             host: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
@@ -690,7 +690,7 @@ impl FromBytes for EndpointData {
 }
 
 impl FromBytes for LocatorResult {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
         let mut read = 0;
 
         let proxy_data = ProxyData::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
