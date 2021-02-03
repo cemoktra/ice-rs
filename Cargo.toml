@@ -1,6 +1,6 @@
 [package]
 name = "ice-rs"
-version = "0.1.14"
+version = "0.2.0"
 authors = ["cemoktra <b.schubert82@gmail.com>"]
 edition = "2018"
 description = "ZeroC Ice for Rust"
@@ -16,10 +16,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "slice2rs"
 path = "src/slice2rs/bin.rs"
-
-[[bin]]
-name = "minimal"
-path = "demos/ice/minimal/src/client/bin.rs"
 
 [dependencies]
 regex = "1"
