@@ -1,36 +1,29 @@
 use std::io::prelude::*;
-use std::net::TcpStream;
-use openssl::ssl::{SslConnector, SslMethod, SslStream, SslVerifyMode};
+use tokio::{io::{AsyncRead, AsyncWrite}, net::TcpStream};
+use tokio_openssl::SslStream;
+use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 use openssl::x509::*;
 use openssl::pkcs12::*;
 use openssl::pkey::*;
 use std::fs::File;
 use std::path::Path;
 
-use crate::protocol::MessageType;
 use crate::transport::Transport;
 use crate::errors::*;
 use crate::properties::Properties;
 
 pub struct SslTransport {
-    stream: SslStream<TcpStream>,
-    buffer: Vec<u8>
+    stream: SslStream<TcpStream>
 }
 
-impl Drop for SslTransport {
-    fn drop(&mut self) {
-        self.close_connection().expect("Could not drop SslConnection");
-    }
-}
-
-fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
     let mut buffer = vec![];
     let mut file = File::open(file_path)?;
     file.read_to_end(&mut buffer)?;
     Ok(buffer)
 }
 
-fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
+fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error + Sync + Send>> {
     let content = read_file(file_path)?;
     match X509::from_pem(&content) {
         Ok(cert) => Ok(cert),
@@ -38,7 +31,7 @@ fn read_cert(file_path: &Path) -> Result<X509, Box<dyn std::error::Error>> {
     }
 }
 
-fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error>> {
+fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error + Sync + Send>> {
     let content = read_file(file_path)?;
     match PKey::private_key_from_pem(&content) {
         Ok(cert) => Ok(cert),
@@ -46,7 +39,7 @@ fn read_key(file_path: &Path) -> Result<PKey<Private>, Box<dyn std::error::Error
     }
 }
 
-fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn std::error::Error>> {
+fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn std::error::Error + Sync + Send>> {
     let content = read_file(file_path)?;
     match Pkcs12::from_der(&content) {
         Ok(pkcs12) => {
@@ -60,7 +53,7 @@ fn read_pkcs12(file_path: &Path, password: &str) -> Result<ParsedPkcs12, Box<dyn
 }
 
 impl SslTransport {
-    pub fn new(address: &str, properties: &Properties) -> Result<SslTransport, Box<dyn std::error::Error>>
+    pub async fn new(address: &str, properties: &Properties) -> Result<SslTransport, Box<dyn std::error::Error + Sync + Send>>
     {
         let mut builder = SslConnector::builder(SslMethod::tls())?;
         let mut store_builder = store::X509StoreBuilder::new()?;
@@ -107,30 +100,45 @@ impl SslTransport {
         }
 
         let connector = builder.build();
-        let stream = TcpStream::connect(address)?;
+        let stream = TcpStream::connect(address).await?;
         let split = address.split(":").collect::<Vec<&str>>();
-        let host = split.first().unwrap();
+        let _host = split.first().unwrap();
 
-        let mut transport = SslTransport {
-            stream: connector.connect(host, stream)?,
-            buffer: vec![0; 4096]
-        };
+        Ok(SslTransport {
+            stream: SslStream::new(connector.configure()?.into_ssl(address)?, stream)?
+        })
+    }
+}
+impl AsyncWrite for SslTransport {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_write(cx, buf)
+    }
 
-        match transport.read_message()? {
-            MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError::new("SSL: Failed to validate new connection")))
-        }
+    fn poll_flush(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
+    }
+}
+
+impl AsyncRead for SslTransport {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_read(cx, buf)
     }
 }
 
 impl Transport for SslTransport {
-    fn read(&mut self) -> std::io::Result<&[u8]> {
-        let bytes = self.stream.read(&mut self.buffer)?;
-        Ok(&self.buffer[0..bytes])
-    }
-
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>
-    {
-        self.stream.write(&buf)
+    fn transport_type(&self) -> String {
+        return String::from("ssl");
     }
 }

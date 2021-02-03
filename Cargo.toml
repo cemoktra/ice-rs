@@ -17,6 +17,10 @@ path = "src/lib.rs"
 name = "slice2rs"
 path = "src/slice2rs/bin.rs"
 
+[[bin]]
+name = "minimal"
+path = "demos/ice/minimal/src/client/bin.rs"
+
 [dependencies]
 regex = "1"
 Inflector = "0.11"
@@ -26,3 +30,8 @@ clap = "3.0.0-beta.2"
 num_enum = "0.5"
 openssl = "0.10"
 quote = "1.0"
+tokio = { version = "1.1.0", features = ["full"] }
+tokio-openssl = "0.6"
+async-trait = "0.1"
+futures = "0.3"
+lazy_static = "1.4.0"

@@ -25,7 +25,7 @@ pub enum ProxyStringType {
     IndirectProxy(IndirectProxyData)
 }
 
-pub fn parse_proxy_string(proxy_string: &str) -> Result<ProxyStringType, Box<dyn std::error::Error>> {
+pub fn parse_proxy_string(proxy_string: &str) -> Result<ProxyStringType, Box<dyn std::error::Error + Sync + Send>> {
     let result = ProxyParser::parse(Rule::proxystring, proxy_string)?.next().unwrap();
     for child in result.into_inner() {
         match child.as_rule() {
@@ -37,7 +37,7 @@ pub fn parse_proxy_string(proxy_string: &str) -> Result<ProxyStringType, Box<dyn
     Err(Box::new(ParsingError::new("Unexpected rule while parsing proxy string.")))
 }
 
-pub fn parse_direct_proxy(rules: Pairs<Rule>) -> Result<ProxyStringType, Box<dyn std::error::Error>> {
+pub fn parse_direct_proxy(rules: Pairs<Rule>) -> Result<ProxyStringType, Box<dyn std::error::Error + Sync + Send>> {
     let mut ident = "";
     for child in rules {
         match child.as_rule() {
@@ -60,7 +60,7 @@ pub fn parse_direct_proxy(rules: Pairs<Rule>) -> Result<ProxyStringType, Box<dyn
     Err(Box::new(ParsingError::new("Unexpected rule while parsing proxy string.")))
 }
 
-pub fn parse_indirect_proxy(rules: Pairs<Rule>) -> Result<ProxyStringType, Box<dyn std::error::Error>> {
+pub fn parse_indirect_proxy(rules: Pairs<Rule>) -> Result<ProxyStringType, Box<dyn std::error::Error + Sync + Send>> {
     let mut ident = "";
     let mut adapter = None;
 
@@ -93,7 +93,7 @@ pub fn parse_indirect_proxy(rules: Pairs<Rule>) -> Result<ProxyStringType, Box<d
 
 }
 
-pub fn parse_endpoint(rules: Pairs<Rule>) -> Result<EndPointType, Box<dyn std::error::Error>> {
+pub fn parse_endpoint(rules: Pairs<Rule>) -> Result<EndPointType, Box<dyn std::error::Error + Sync + Send>> {
     let mut protocol = "";
     let mut host = "";
     let mut port = 0i32;

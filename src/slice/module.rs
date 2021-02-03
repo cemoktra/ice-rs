@@ -112,6 +112,7 @@ impl Module {
     fn uses(&self, super_mod: &str) -> UseStatements {
         let mut use_statements = UseStatements::new();
 
+        use_statements.use_crate(quote! { use async_trait::async_trait });
         if self.has_dict() {
             use_statements.use_crate(quote! { use std::collections::HashMap });
         }
@@ -170,7 +171,7 @@ impl Module {
             use_statements.use_crate(quote! { use ice_rs::encoding::* });
             use_statements.use_crate(quote! { use ice_rs::proxy::Proxy });
             use_statements.use_crate(quote! { use ice_rs::iceobject::IceObject });
-            use_statements.use_crate(quote! { use ice_rs::protocol::* });
+            use_statements.use_crate(quote! { use ice_rs::protocol::* });            
 
             for item in &self.interfaces {
                 for func in &item.functions {
@@ -272,6 +273,8 @@ impl Module {
         let mut child = Command::new("rustfmt")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
+            .arg("--edition")
+            .arg("2018")
             .spawn()?;
         {
             let stdin = child.stdin.as_mut().ok_or(ParsingError::new("Could not get stdin of rustfmt process"))?;

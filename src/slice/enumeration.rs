@@ -58,7 +58,7 @@ impl Enum {
             }
 
             impl ToBytes for #id_token {
-                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
                     let mut bytes = Vec::new();
                     bytes.extend(IceSize{size: *self as i32}.to_bytes()?);
                     Ok(bytes)
@@ -66,7 +66,7 @@ impl Enum {
             }
 
             impl FromBytes for #id_token {
-                fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+                fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
                 where Self: Sized {
                     let mut read = 0;
                     let enum_value = IceSize::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?.size;

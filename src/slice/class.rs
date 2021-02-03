@@ -124,7 +124,7 @@ impl Class {
             }
 
             impl ToBytes for #id_token {
-                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
                     let mut bytes = Vec::new();
                     #(#member_to_bytes_tokens);*;
                     Ok(bytes)
@@ -132,7 +132,7 @@ impl Class {
             }
 
             impl FromBytes for #id_token {
-                fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>>
+                fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
                 where Self: Sized {
                     let mut read = 0;
                     let marker = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;

@@ -9,7 +9,7 @@ use std::io::prelude::*;
 #[grammar = "iceconfig.pest"]
 pub struct PropertyParser;
 
-
+#[derive(Clone)]
 pub struct Properties {
     properties: BTreeMap<String, String>
 }

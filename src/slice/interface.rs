@@ -44,6 +44,7 @@ impl Interface {
         let id_proxy_token = format_ident!("{}Prx", self.id.to_string());
         let type_id_token = format!("{}::{}", mod_path, self.ice_id);
         Ok(quote! {
+            #[async_trait]
             pub trait #id_token : IceObject {
                 #decl_tokens
             }
@@ -52,30 +53,32 @@ impl Interface {
                 pub proxy: Proxy
             }
 
+            #[async_trait]
             impl IceObject for #id_proxy_token {
                 const TYPE_ID: &'static str = #type_id_token;
-                fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes>(&mut self, op: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> Result<ReplyData, Box<dyn std::error::Error>> {
+                async fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes + Send + Sync>(&mut self, op: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> Result<ReplyData, Box<dyn std::error::Error + Send + Sync>> {
                     let id = String::from(self.proxy.ident.clone());
                     let req = self.proxy.create_request(&id, op, mode, params, context);
-                    self.proxy.make_request::<T>(&req)
+                    self.proxy.make_request::<T>(&req).await
                 }
             }
 
+            #[async_trait]
             impl #id_token for #id_proxy_token {
                 #impl_tokens
             }
 
             impl #id_proxy_token {
-                pub fn unchecked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
+                pub async fn unchecked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
                     Ok(Self {
                         proxy: proxy,
                     })
                 }
 
-                pub fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error>> {
-                    let mut my_proxy = Self::unchecked_cast(proxy)?;
+                pub async fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+                    let mut my_proxy = Self::unchecked_cast(proxy).await?;
             
-                    if !my_proxy.ice_is_a()? {
+                    if !my_proxy.ice_is_a().await? {
                         return Err(Box::new(ProtocolError::new("ice_is_a() failed")));
                     }
                     Ok(my_proxy)

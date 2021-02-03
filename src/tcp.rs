@@ -1,44 +1,46 @@
-use std::io::prelude::*;
-use std::net::TcpStream;
+use tokio::{io::{AsyncRead, AsyncWrite}, net::TcpStream};
 
-use crate::protocol::MessageType;
 use crate::transport::Transport;
-use crate::errors::*;
 
 pub struct TcpTransport {
-    stream: TcpStream,
-    buffer: Vec<u8>
-}
-
-impl Drop for TcpTransport {
-    fn drop(&mut self) {
-        self.close_connection().expect("Could not drop TcpConnection");
-    }
+    stream: TcpStream
 }
 
 impl TcpTransport {
-    pub fn new(address: &str) -> Result<TcpTransport, Box<dyn std::error::Error>>
+    pub async fn new(address: &str) -> Result<TcpTransport, Box<dyn std::error::Error + Sync + Send>>
     {
-        let mut transport = TcpTransport {
-            stream: TcpStream::connect(address)?,
-            buffer: vec![0; 4096]
-        };
+        Ok(TcpTransport {
+            stream: TcpStream::connect(address).await?
+        })
+    }
+}
 
-        match transport.read_message()? {
-            MessageType::ValidateConnection(_) => Ok(transport),
-            _ => Err(Box::new(ProtocolError::new("TCP: Failed to validate new connection")))
-        }
+impl AsyncWrite for TcpTransport {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
+    }
+}
+
+impl AsyncRead for TcpTransport {
+    fn poll_read(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &mut tokio::io::ReadBuf<'_>) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_read(cx, buf)
     }
 }
 
 impl Transport for TcpTransport {
-    fn read(&mut self) -> std::io::Result<&[u8]> {
-        let bytes = self.stream.read(&mut self.buffer)?;
-        Ok(&self.buffer[0..bytes])
-    }
-
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>
-    {
-        self.stream.write(&buf)
+    fn transport_type(&self) -> String {
+        return String::from("tcp");
     }
 }

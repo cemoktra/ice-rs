@@ -100,7 +100,7 @@ impl<T: std::fmt::Debug + Display + FromBytes> std::error::Error for UserError<T
 
 // dummy needed, but should not get called
 impl FromBytes for ProtocolError {
-    fn from_bytes(bytes: &[u8], _read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized {
+    fn from_bytes(bytes: &[u8], _read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> where Self: Sized {
         Ok(Self {
             detail: String::from_utf8(bytes.to_vec())?
         })
