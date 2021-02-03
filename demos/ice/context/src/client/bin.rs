@@ -37,18 +37,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     context_prx.call(Some(context)).await?;
                 },
                 termion::event::Key::Char('3') => {
-                    println!("Deactivated");
-                    // let mut context = std::collections::HashMap::new();
-                    // context.insert(String::from("type"), String::from("Per-Proxy"));
-                    // let proxy2 = context_prx.proxy.ice_context(context);
-                    // let mut context_prx2 = ContextPrx::unchecked_cast(proxy2)?;
-                    // context_prx2.call(None).await?;
+                    let mut context = std::collections::HashMap::new();
+                    context.insert(String::from("type"), String::from("Per-Proxy"));
+                    let proxy2 = context_prx.proxy.ice_context(context).await?;
+                    let mut context_prx2 = ContextPrx::unchecked_cast(proxy2).await?;
+                    context_prx2.call(None).await?;
                 },
                 termion::event::Key::Char('4') => {
                     println!("No supported yet");
                 },
                 termion::event::Key::Char('s') => {
-                    context_prx.shutdown(None).await?
+                    context_prx.shutdown(None).await?;
                 },
                 termion::event::Key::Char('x') => return Ok(()),
                 termion::event::Key::Char('?') => {

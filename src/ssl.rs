@@ -137,4 +137,8 @@ impl AsyncRead for SslTransport {
     }
 }
 
-impl Transport for SslTransport {}
+impl Transport for SslTransport {
+    fn transport_type(&self) -> String {
+        return String::from("ssl");
+    }
+}

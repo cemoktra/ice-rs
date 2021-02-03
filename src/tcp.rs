@@ -39,4 +39,8 @@ impl AsyncRead for TcpTransport {
     }
 }
 
-impl Transport for TcpTransport {}
+impl Transport for TcpTransport {
+    fn transport_type(&self) -> String {
+        return String::from("tcp");
+    }
+}

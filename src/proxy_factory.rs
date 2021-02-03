@@ -7,7 +7,7 @@ pub struct ProxyFactory {
 }
 
 impl ProxyFactory {
-    async fn create_proxy(proxy_data: DirectProxyData, properties: &Properties, context: Option<HashMap<String, String>>) -> Result<Proxy, Box<dyn std::error::Error + Sync + Send>> {
+    pub async fn create_proxy(proxy_data: DirectProxyData, properties: &Properties, context: Option<HashMap<String, String>>) -> Result<Proxy, Box<dyn std::error::Error + Sync + Send>> {
         let mut proxy = match proxy_data.endpoint {            
             EndPointType::TCP(endpoint) => {
                 Proxy::new(

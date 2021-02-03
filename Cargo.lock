@@ -313,6 +313,7 @@ dependencies = [
  "async-trait",
  "clap",
  "futures",
+ "lazy_static",
  "num_enum",
  "openssl",
  "pest",

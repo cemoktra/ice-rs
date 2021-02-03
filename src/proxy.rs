@@ -4,7 +4,7 @@ use std::sync::Arc;
 use task::JoinHandle;
 use tokio::{io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf}, sync::Mutex, task};
 
-use crate::{errors::{ProtocolError, UserError}, protocol::{Header, MessageType}, transport::Transport};
+use crate::{errors::{ProtocolError, UserError}, protocol::{Header, MessageType}, proxy_factory::ProxyFactory, proxy_parser::{ProxyStringType, parse_proxy_string}, transport::Transport};
 use crate::protocol::{ReplyData, RequestData, Identity, Encapsulation};
 use crate::encoding::{ToBytes, FromBytes};
 
@@ -21,6 +21,7 @@ pub struct Proxy {
     pub context: Option<HashMap<String, String>>,
     pub handle: Option<JoinHandle<Result<(), Box<dyn std::error::Error + Sync + Send>>>>,
     pub message_queue: Arc<Mutex<Vec<MessageType>>>,
+    pub stream_type: String
 }
 
 
@@ -67,6 +68,7 @@ impl Proxy {
     }
 
     pub fn new(stream: Box<dyn Transport + Send + Sync + Unpin>, ident: &str, host: &str, port: i32, context: Option<HashMap<String, String>>) -> Proxy {
+        let stream_type = stream.transport_type();
         let (rx, tx) = tokio::io::split(stream);
         let mut proxy = Proxy {
             write: tx,
@@ -76,7 +78,8 @@ impl Proxy {
             port,
             context: context,
             handle: None,
-            message_queue: Arc::new(Mutex::new(Vec::new()))
+            message_queue: Arc::new(Mutex::new(Vec::new())),
+            stream_type
         };
         let message_queue = proxy.message_queue.clone();
         proxy.handle = Some(task::spawn(async move {
@@ -98,19 +101,18 @@ impl Proxy {
         Ok(())
     }
 
-    // pub async fn ice_context(&mut self, context: HashMap<String, String>) -> Proxy {
-    //     ProxyFactory::create_proxy(data, properties).await
-    //     ProxyFactory::create(&mut self, proxy_string, properties)
-    //     Proxy {
-    //         // TODO: should not clone, but create new
-    //         stream: self.stream.clone(),
-    //         request_id: self.request_id,
-    //         ident: self.ident.clone(),
-    //         host: self.host.clone(),
-    //         port: self.port,
-    //         context: Some(context)
-    //     }
-    // }
+    pub async fn ice_context(&mut self, context: HashMap<String, String>) -> Result<Proxy, Box<dyn std::error::Error + Send + Sync>> {
+        let init_data = crate::communicator::INITDATA.lock().unwrap();
+        let proxy_string = format!("{}:{} -h {} -p {}", self.ident, self.stream_type, self.host, self.port);
+        match parse_proxy_string(&proxy_string)? {
+            ProxyStringType::DirectProxy(data) => {
+                ProxyFactory::create_proxy(data, init_data.properties(), Some(context)).await
+            }
+            _ => {
+                Err(Box::new(ProtocolError::new("ice_context() - could not create proxy")))
+            }
+        }
+    }
 
     pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> RequestData {
         let context = match context {

@@ -1,32 +1,40 @@
+use std::sync::Mutex;
+
 use crate::{proxy::Proxy, proxy_factory::ProxyFactory};
 use crate::initdata::InitializationData;
 use crate::errors::PropertyError;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref INITDATA: Mutex<InitializationData> = Mutex::new(InitializationData::new());
+}
 
 /// The Communicator is a basic object in ZeroC Ice. Currently
 /// this is more a stub that does dummy initialization.
 pub struct Communicator {
-    pub init_data: InitializationData,
     proxy_factory: ProxyFactory
 }
 
 impl Communicator {
     pub async fn new() -> Result<Communicator, Box<dyn std::error::Error + Sync + Send>> {
-        let init_data = InitializationData::new();
-        let proxy_factory = ProxyFactory::new(&init_data.properties).await?;
+        let init_data = INITDATA.lock().unwrap();
+        let proxy_factory = ProxyFactory::new(init_data.properties()).await?;
         Ok(Communicator {
-            init_data,
             proxy_factory
         })
     }
 
     pub async fn string_to_proxy(&mut self, proxy_string: &str) -> Result<Proxy, Box<dyn std::error::Error + Sync + Send>> {
-        self.proxy_factory.create(proxy_string, &self.init_data.properties).await
+        let init_data = INITDATA.lock().unwrap();
+        self.proxy_factory.create(proxy_string, init_data.properties()).await
     }
 
     pub async fn property_to_proxy(&mut self, property: &str) -> Result<Proxy, Box<dyn std::error::Error + Sync + Send>> {
-        match self.init_data.properties.get(property) {
+        let init_data = INITDATA.lock().unwrap();
+        let properties = init_data.properties();
+        match properties.get(property) {
             Some(value) => {
-                self.proxy_factory.create(value, &self.init_data.properties).await
+                self.proxy_factory.create(value, &properties).await
             }
             None => {
                 Err(Box::new(PropertyError::new(property)))
@@ -36,11 +44,11 @@ impl Communicator {
 }
 
 pub async fn initialize(config_file: &str) -> Result<Communicator, Box<dyn std::error::Error + Sync + Send>> {
-    let mut init_data = InitializationData::new();
-    init_data.properties.load(config_file).unwrap();
-    let proxy_factory = ProxyFactory::new(&init_data.properties).await?;
+    let mut init_data = INITDATA.lock().unwrap();
+    let properties = init_data.properties_as_mut();
+    properties.load(config_file).unwrap();
+    let proxy_factory = ProxyFactory::new(&properties).await?;
     Ok(Communicator {
-        init_data,
         proxy_factory
     })
 }
