@@ -15,10 +15,11 @@ fn menu() {
     println!("?: help");
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut comm = ice_rs::communicator::initialize("config.client")?;
-    let proxy = comm.property_to_proxy("Context.Proxy")?;
-    let mut context_prx = ContextPrx::unchecked_cast(proxy)?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut comm = ice_rs::communicator::initialize("config.client").await?;
+    let proxy = comm.property_to_proxy("Context.Proxy").await?;
+    let mut context_prx = ContextPrx::unchecked_cast(proxy).await?;
 
     menu();
     let mut stdin = termion::async_stdin().keys();
@@ -28,25 +29,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(Ok(key)) = input {
             match key {
                 termion::event::Key::Char('1') => {
-                    context_prx.call(None)?;
+                    context_prx.call(None).await?;
                 },
                 termion::event::Key::Char('2') => {
                     let mut context = std::collections::HashMap::new();
                     context.insert(String::from("type"), String::from("Explicit"));
-                    context_prx.call(Some(context))?;
+                    context_prx.call(Some(context)).await?;
                 },
                 termion::event::Key::Char('3') => {
-                    let mut context = std::collections::HashMap::new();
-                    context.insert(String::from("type"), String::from("Per-Proxy"));
-                    let proxy2 = context_prx.proxy.ice_context(context);
-                    let mut context_prx2 = ContextPrx::unchecked_cast(proxy2)?;
-                    context_prx2.call(None)?;
+                    println!("Deactivated");
+                    // let mut context = std::collections::HashMap::new();
+                    // context.insert(String::from("type"), String::from("Per-Proxy"));
+                    // let proxy2 = context_prx.proxy.ice_context(context);
+                    // let mut context_prx2 = ContextPrx::unchecked_cast(proxy2)?;
+                    // context_prx2.call(None).await?;
                 },
                 termion::event::Key::Char('4') => {
                     println!("No supported yet");
                 },
                 termion::event::Key::Char('s') => {
-                    context_prx.shutdown(None)?
+                    context_prx.shutdown(None).await?
                 },
                 termion::event::Key::Char('x') => return Ok(()),
                 termion::event::Key::Char('?') => {

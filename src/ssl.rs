@@ -1,6 +1,5 @@
-use async_trait::async_trait;
 use std::io::prelude::*;
-use tokio::{io::AsyncReadExt, net::TcpStream};
+use tokio::{io::{AsyncRead, AsyncWrite}, net::TcpStream};
 use tokio_openssl::SslStream;
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 use openssl::x509::*;
@@ -8,21 +7,13 @@ use openssl::pkcs12::*;
 use openssl::pkey::*;
 use std::fs::File;
 use std::path::Path;
-use tokio::io::AsyncWriteExt;
 
 use crate::transport::Transport;
 use crate::errors::*;
 use crate::properties::Properties;
 
 pub struct SslTransport {
-    stream: SslStream<TcpStream>,
-    buffer: Vec<u8>
-}
-
-impl Drop for SslTransport {
-    fn drop(&mut self) {
-        // self.close_connection().expect("Could not drop SslConnection");
-    }
+    stream: SslStream<TcpStream>
 }
 
 fn read_file(file_path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
@@ -114,21 +105,36 @@ impl SslTransport {
         let _host = split.first().unwrap();
 
         Ok(SslTransport {
-            stream: SslStream::new(connector.configure()?.into_ssl(address)?, stream)?,
-            buffer: vec![0; 4096]
+            stream: SslStream::new(connector.configure()?.into_ssl(address)?, stream)?
         })
     }
 }
-
-#[async_trait]
-impl Transport for SslTransport {
-    async fn read(&mut self) -> tokio::io::Result<&[u8]> {
-        let bytes = self.stream.read_buf(&mut self.buffer).await?;
-        Ok(&self.buffer[0..bytes])
+impl AsyncWrite for SslTransport {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_write(cx, buf)
     }
 
-    async fn write(&mut self, buf: &mut [u8]) -> tokio::io::Result<usize>
-    {
-        self.stream.write(buf).await
+    fn poll_flush(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_shutdown(cx)
     }
 }
+
+impl AsyncRead for SslTransport {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().stream).poll_read(cx, buf)
+    }
+}
+
+impl Transport for SslTransport {}

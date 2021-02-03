@@ -312,6 +312,7 @@ dependencies = [
  "Inflector",
  "async-trait",
  "clap",
+ "futures",
  "num_enum",
  "openssl",
  "pest",

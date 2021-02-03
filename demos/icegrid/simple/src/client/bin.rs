@@ -15,10 +15,11 @@ fn menu() {
     println!("?: help");
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut comm = ice_rs::communicator::initialize("config.client")?;
-    let proxy = comm.string_to_proxy("hello")?;
-    let mut hello_prx = HelloPrx::checked_cast(proxy)?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut comm = ice_rs::communicator::initialize("config.client").await?;
+    let proxy = comm.string_to_proxy("hello").await?;
+    let mut hello_prx = HelloPrx::checked_cast(proxy).await?;
 
     menu();
     let mut stdin = termion::async_stdin().keys();
@@ -29,10 +30,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             match key {
                 termion::event::Key::Char('x') => return Ok(()),
                 termion::event::Key::Char('t') => {
-                    hello_prx.say_hello(None)?
+                    hello_prx.say_hello(None).await?
                 },
                 termion::event::Key::Char('s') => {
-                    hello_prx.shutdown(None)?
+                    hello_prx.shutdown(None).await?
                 },
                 termion::event::Key::Char('?') => {
                     menu()
