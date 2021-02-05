@@ -55,11 +55,30 @@ impl Interface {
 
             #[async_trait]
             impl IceObject for #id_proxy_token {
-                const TYPE_ID: &'static str = #type_id_token;
-                async fn dispatch<T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes + Send + Sync>(&mut self, op: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> Result<ReplyData, Box<dyn std::error::Error + Send + Sync>> {
-                    let id = String::from(self.proxy.ident.clone());
-                    let req = self.proxy.create_request(&id, op, mode, params, context);
-                    self.proxy.make_request::<T>(&req).await
+                async fn ice_ping(&mut self) -> Result<(), Box<dyn std::error::Error + Sync + Send>>
+                {
+                    self.proxy.dispatch::<ProtocolError>(&String::from("ice_ping"), 1, &Encapsulation::empty(), None).await?;
+                    Ok(())
+                }
+
+                async fn ice_is_a(&mut self) -> Result<bool, Box<dyn std::error::Error + Sync + Send>> {
+                    let reply = self.proxy.dispatch::<ProtocolError>(&String::from("ice_isA"), 1, &Encapsulation::from(String::from(#type_id_token).to_bytes()?), None).await?;
+                    let mut read_bytes: i32 = 0;
+                    bool::from_bytes(&reply.body.data, &mut read_bytes)
+                }
+
+                async fn ice_id(&mut self) -> Result<String, Box<dyn std::error::Error + Sync + Send>>
+                {
+                    let reply = self.proxy.dispatch::<ProtocolError>(&String::from("ice_id"), 1, &Encapsulation::empty(), None).await?;
+                    let mut read_bytes: i32 = 0;
+                    String::from_bytes(&reply.body.data, &mut read_bytes)
+                }
+
+                async fn ice_ids(&mut self) -> Result<Vec<String>, Box<dyn std::error::Error + Sync + Send>>
+                {
+                    let reply = self.proxy.dispatch::<ProtocolError>(&String::from("ice_ids"), 1, &Encapsulation::empty(), None).await?;
+                    let mut read_bytes: i32 = 0;
+                    Vec::from_bytes(&reply.body.data, &mut read_bytes)
                 }
             }
 

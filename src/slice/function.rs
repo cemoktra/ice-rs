@@ -93,7 +93,7 @@ impl Function {
             async fn #id_token (#(#arg_tokens),*) -> Result<#return_token, Box<dyn std::error::Error + Send + Sync>> {
                 #bytes_token
                 #(#arg_serialize_input_tokens)*
-                #reply_token self.dispatch::<#throw_token>(&String::from(#ice_id_token), #mode, &Encapsulation::from(bytes), context).await?;
+                #reply_token self.proxy.dispatch::<#throw_token>(&String::from(#ice_id_token), #mode, &Encapsulation::from(bytes), context).await?;
                 #read_token
                 #(#arg_serialize_output_tokens)*
                 #returned_token
