@@ -17,6 +17,10 @@ path = "src/lib.rs"
 name = "slice2rs"
 path = "src/slice2rs/bin.rs"
 
+[[bin]]
+name = "context"
+path = "demos/ice/context/src/client/bin.rs"
+
 [dependencies]
 regex = "1"
 Inflector = "0.11"
@@ -31,3 +35,4 @@ tokio-openssl = "0.6"
 async-trait = "0.1"
 futures = "0.3"
 lazy_static = "1.4.0"
+termion = "1.5"

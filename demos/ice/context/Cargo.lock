@@ -330,6 +330,7 @@ dependencies = [
  "pest_derive",
  "quote",
  "regex",
+ "termion",
  "tokio",
  "tokio-openssl",
 ]

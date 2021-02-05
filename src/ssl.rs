@@ -74,7 +74,7 @@ impl SslTransport {
         let store = store_builder.build();
         builder.set_verify_cert_store(store)?;
 
-        let verify_peer = properties.get("IceSSL.VerifyPeer").ok_or(Box::new(PropertyError::new("IceSSL.VerifyPeer")))?.parse::<u8>()?;
+        let verify_peer = properties.get("IceSSL.VerifyPeer").unwrap_or(&String::from("1")).parse::<u8>()?;
         match verify_peer {
             0 => builder.set_verify(SslVerifyMode::NONE),
             _ => builder.set_verify(SslVerifyMode::PEER)
@@ -104,8 +104,10 @@ impl SslTransport {
         let split = address.split(":").collect::<Vec<&str>>();
         let _host = split.first().unwrap();
 
+        let mut stream = SslStream::new(connector.configure()?.into_ssl(address)?, stream)?;
+        std::pin::Pin::new(&mut stream).connect().await.unwrap();
         Ok(SslTransport {
-            stream: SslStream::new(connector.configure()?.into_ssl(address)?, stream)?
+            stream
         })
     }
 }
