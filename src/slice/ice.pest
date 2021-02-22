@@ -1,6 +1,12 @@
-ice = { SOI ~ NEWLINE* ~ pragma+ ~ NEWLINE* ~ lang_include* ~ NEWLINE* ~ file_include* ~ NEWLINE* ~ (module_block)+ ~ EOI }
+ice = { 
+    SOI ~ NEWLINE* ~ 
+    pragma? ~ NEWLINE* ~ 
+    (lang_include | file_include)* ~ NEWLINE* ~ 
+    (module_block)+ ~ 
+    EOI 
+}
 
-WHITESPACE = _{ " " }
+WHITESPACE = _{ " " | "\t" }
 COMMENT = _{ ("//" ~ (!NEWLINE ~ ANY)*) | ( "/*" ~ ("!*/" ~ ANY)*) }
 
 pragma = _{ "#pragma once" }

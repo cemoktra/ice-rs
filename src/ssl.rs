@@ -99,6 +99,11 @@ impl SslTransport {
             builder.set_private_key(&key)?;
         }
 
+        match properties.get("IceSSL.Ciphers") {
+            Some(ciphers) => builder.set_cipher_list(ciphers)?,
+            _ => {}
+        }
+
         let connector = builder.build();
         let stream = TcpStream::connect(address).await?;
         let split = address.split(":").collect::<Vec<&str>>();
