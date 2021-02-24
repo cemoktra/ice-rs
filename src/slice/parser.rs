@@ -114,7 +114,7 @@ impl ParsedModule for Module {
                     let mut id = "";
                     for item in child.into_inner() {
                         match item.as_rule() {
-                            Rule::typename => { vartype = IceType::from(item.as_str())? },
+                            Rule::typename => { vartype = IceType::from(&escape::escape(item.as_str()))? },
                             Rule::identifier => { id = item.as_str(); },
                             Rule::typedef_end => {
                                 self.type_map.borrow_mut().insert(String::from(id), module.snake_name());
