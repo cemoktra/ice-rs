@@ -41,6 +41,7 @@ pub mod protocol;
 pub mod encoding;
 pub mod tcp;
 pub mod ssl;
+pub mod ssltools;
 pub mod transport;
 pub mod proxy;
 pub mod proxy_parser;
