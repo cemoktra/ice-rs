@@ -76,13 +76,13 @@ fn configure_ca(ssl_dir: &Path, properties: &Properties, builder: &mut SslConnec
     let ca = match properties.get("IceSSL.CAs") {
         Some(ca_file) => {
             // PEM
-            read_pem(ca_file, ssl_dir)?.0
+            read_pem(ca_file, ssl_dir)?.0.unwrap()
         }
         _ => {
             if let Some(ca_file) = properties.get("IceSSL.CertAuthFile") {
                 // PEM [DEPRECATED]
                 println!("[SSL] Use of deprecated property IceSSL.CertAuthFile");
-                read_pem(ca_file, ssl_dir)?.0
+                read_pem(ca_file, ssl_dir)?.0.unwrap()
             } else {
                 return Ok(());
             }
@@ -98,24 +98,23 @@ fn configure_ca(ssl_dir: &Path, properties: &Properties, builder: &mut SslConnec
 
 fn configure_client_certs(ssl_dir: &Path, properties: &Properties, builder: &mut SslConnectorBuilder) -> Result<(), Box<dyn std::error::Error + Sync + Send>>
 {
-    let (cert, pkey) = match properties.get("IceSSL.KeyFile") {
-        Some(key_file) => {
-            // PEM [DEPRECATED]
-            println!("[SSL] Use of deprecated property IceSSL.KeyFile");
-            let (cert, pkey) = read_pem(key_file, ssl_dir)?;
-            match pkey {
-                Some(pkey) => (cert, pkey),
-                _ => return Err(Box::new(ProtocolError::new("SSL: IceSSL.KeyFile does not contain a private key")))
-            }
-        }
-        _ => {
-            if let Some(cert_file) = properties.get("IceSSL.CertFile") {   
+    let (cert, pkey) = match properties.get("IceSSL.CertFile") {
+        Some(cert_file) => {
+            if let Some(key_file) = properties.get("IceSSL.KeyFile") {
+                // PEM [DEPRECATED]
+                println!("[SSL] Use of deprecated property IceSSL.KeyFile");
+                let (cert, _) = read_pem(cert_file, ssl_dir)?;
+                let (_, pkey) = read_pem(key_file, ssl_dir)?;
+                (cert.unwrap(), pkey.unwrap())
+            } else {
+                // PKCS12
                 let password = properties.get("IceSSL.Password").ok_or(Box::new(PropertyError::new("Use of IceSSL.CertFile requires IceSSL.Password to be set")))?;
                 let pkcs12 = read_pkcs12(Path::new(cert_file), password, ssl_dir)?;
                 (pkcs12.cert, pkcs12.pkey)
-            } else {
-                return Ok(());
             }
+        }
+        _ => {
+            return Ok(());
         }
     };
     builder.set_certificate(&cert)?;

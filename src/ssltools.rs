@@ -8,17 +8,20 @@ use std::path::Path;
 
 use crate::errors::*;
 
-pub (crate) fn read_pem(pem_file: &str, dir: &Path) ->Result<(X509, Option<PKey<Private>>), Box<dyn std::error::Error + Sync + Send>> {
+pub (crate) fn read_pem(pem_file: &str, dir: &Path) ->Result<(Option<X509>, Option<PKey<Private>>), Box<dyn std::error::Error + Sync + Send>> {
     let mut buffer = vec![];
     let mut file = File::open(&dir.join(pem_file))?;
     file.read_to_end(&mut buffer)?;
 
     match (X509::from_pem(&buffer), PKey::private_key_from_pem(&buffer)) {
         (Ok(cert), Ok(pkey)) => {
-            Ok((cert, Some(pkey)))
+            Ok((Some(cert), Some(pkey)))
         }
         (Ok(cert), _) => {
-            Ok((cert, None))
+            Ok((Some(cert), None))
+        }
+        (_, Ok(pkey)) => {
+            Ok((None, Some(pkey)))
         }
         _ => Err(Box::new(ProtocolError::new(&format!("SSL: Error reading PEM file: {}", pem_file))))
     }
