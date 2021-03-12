@@ -1,4 +1,4 @@
-use crate::{protocol::{Encapsulation, EndPointType, Header, Identity, LocatorResult, ProxyData, ReplyData, RequestData, EndpointData, Version}};
+use crate::protocol::*;
 use crate::errors::*;
 use std::convert::TryInto;
 use std::collections::HashMap;
@@ -382,30 +382,6 @@ impl FromBytes for bool {
 }
 
 
-// PROTOCOL STRUCT AS/FROM BYTES
-impl ToBytes for Identity {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
-    {
-        let mut buffer: Vec<u8> = Vec::new();
-        buffer.extend(self.name.to_bytes()?);
-        buffer.extend(self.category.to_bytes()?);
-        Ok(buffer)
-    }
-}
-
-impl FromBytes for Identity {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
-        let mut read = 0;
-        let name = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let category = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        *read_bytes = *read_bytes + read;
-        Ok(Identity {
-            name: name,
-            category: category
-        })
-    }
-}
-
 impl ToBytes for Encapsulation {
     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
     {
@@ -438,60 +414,6 @@ impl FromBytes for Encapsulation {
             minor: minor,
             data: bytes[read as usize..bytes.len()].to_vec()
         })
-    }
-}
-
-impl ToBytes for RequestData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
-    {
-        let mut buffer: Vec<u8> = Vec::new();
-        buffer.extend(self.request_id.to_bytes()?);
-        buffer.extend(self.id.to_bytes()?);
-        buffer.extend(self.facet.to_bytes()?);
-        buffer.extend(self.operation.to_bytes()?);
-        buffer.extend(self.mode.to_bytes()?);
-        buffer.extend(self.context.to_bytes()?);
-        buffer.extend(self.params.to_bytes()?);
-
-        Ok(buffer)
-
-    }
-}
-
-impl FromBytes for RequestData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
-        let mut read = 0;
-        let request_id = i32::from_bytes(bytes, &mut read)?;
-        let id = Identity::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let facet = Vec::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let operation = String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let mode = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let context = HashMap::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let encapsulation = Encapsulation::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        *read_bytes = *read_bytes + read;
-
-        Ok(RequestData {
-            request_id: request_id,
-            id: id,
-            facet: facet,
-            operation: operation,
-            mode: mode,
-            context: context,
-            params: encapsulation
-        })
-    }
-}
-
-
-impl ToBytes for ReplyData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
-    {
-        let mut buffer: Vec<u8> = Vec::new();
-        buffer.extend(self.request_id.to_bytes()?);
-        buffer.extend(self.status.to_bytes()?);
-        buffer.extend(self.body.to_bytes()?);
-
-        Ok(buffer)
     }
 }
 
@@ -540,7 +462,7 @@ impl ToBytes for Header {
         buffer.extend(self.encoding_minor.to_bytes()?);
         buffer.extend(self.message_type.to_bytes()?);
         buffer.extend(self.compression_status.to_bytes()?);
-        buffer.extend(&self.message_size.to_le_bytes());
+        buffer.extend(self.message_size.to_bytes()?);
 
         Ok(buffer)
     }
@@ -605,87 +527,6 @@ impl<T: FromBytes> FromBytes for Option<T> {
         } else {
             Ok(None)
         }
-    }
-}
-
-impl ToBytes for ProxyData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
-        let mut bytes = Vec::new();
-
-        bytes.extend(self.id.to_bytes()?);
-        bytes.extend(self.facet.to_bytes()?);
-        bytes.extend(self.mode.to_bytes()?);
-        bytes.extend(self.secure.to_bytes()?);
-        bytes.extend(self.protocol.to_bytes()?);
-        bytes.extend(self.encoding.to_bytes()?);
-
-        Ok(bytes)
-    }
-}
-
-impl FromBytes for ProxyData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
-    where Self: Sized {
-        let mut read: i32 = 0;
-        let result = ProxyData {
-            id: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            facet: Vec::<String>::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            mode: u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            secure: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            protocol: Version::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            encoding: Version::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
-        };
-        *read_bytes = *read_bytes + read;
-        Ok(result)
-    }
-}
-
-impl ToBytes for Version {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
-    {
-        let mut buffer: Vec<u8> = Vec::new();
-        buffer.extend(self.major.to_bytes()?);
-        buffer.extend(self.minor.to_bytes()?);
-        Ok(buffer)
-    }
-}
-
-impl FromBytes for Version {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
-        let mut read = 0;
-        let major = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        let minor = u8::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?;
-        *read_bytes = *read_bytes + read;
-        Ok(Version {
-            major: major,
-            minor: minor
-        })
-    }
-}
-
-impl ToBytes for EndpointData {
-    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>>
-    {
-        let mut buffer: Vec<u8> = Vec::new();
-        buffer.extend(self.host.to_bytes()?);
-        buffer.extend(self.port.to_bytes()?);
-        buffer.extend(self.timeout.to_bytes()?);
-        buffer.extend(self.compress.to_bytes()?);
-        Ok(buffer)
-    }
-}
-
-impl FromBytes for EndpointData {
-    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
-        let mut read = 0;
-        let endpoint = EndpointData {
-            host: String::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            port: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            timeout: i32::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
-            compress: bool::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
-        };
-        *read_bytes = *read_bytes + read;
-        Ok(endpoint)
     }
 }
 

@@ -31,9 +31,6 @@ impl Class {
         let mut member_tokens = self.members.iter().map(|member| {
             member.declare()
         }).collect::<Vec<_>>();
-        let member_to_bytes_tokens = self.members.iter().map(|member| {
-            member.to_bytes()
-        }).collect::<Vec<_>>();
         let member_from_bytes_tokens = self.members.iter().map(|member| {
             let id_token = &member.id;
             let var_token = &member.r#type.token_from();
@@ -118,18 +115,18 @@ impl Class {
 
         // TODO: ToBytes incomplete
         Ok(quote! {
-            #[derive(Debug, Clone, PartialEq)]
+            #[derive(Debug, Clone, PartialEq, IceEncode)]
             pub struct #id_token {
                 #(#member_tokens),*
             }
 
-            impl ToBytes for #id_token {
-                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-                    let mut bytes = Vec::new();
-                    #(#member_to_bytes_tokens);*;
-                    Ok(bytes)
-                }
-            }
+            // impl ToBytes for #id_token {
+            //     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+            //         let mut bytes = Vec::new();
+            //         #(#member_to_bytes_tokens);*;
+            //         Ok(bytes)
+            //     }
+            // }
 
             impl FromBytes for #id_token {
                 fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>

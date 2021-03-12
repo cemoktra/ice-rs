@@ -1,0 +1,19 @@
+[package]
+name = "ice-derive"
+version = "0.1.0"
+authors = ["cemoktra <b.schubert82@gmail.com>"]
+edition = "2018"
+description = "derive macros for ice-rs"
+readme = "README.md"
+homepage = "https://github.com/cemoktra/ice-rs"
+repository = "https://github.com/cemoktra/ice-rs"
+license = "GPL-2.0"
+keywords = ["zeroc", "ice", "rpc"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0"
+quote = "1.0"
+proc-macro2 = "1.0"
