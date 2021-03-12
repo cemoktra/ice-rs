@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate ice_derive;
+
 use ice_rs::communicator::Communicator;
 
 mod gen;

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use crate::encoding::IceSize;
-
+use crate::encoding::*;
 
 #[derive(Debug)]
 pub enum MessageType {
@@ -23,7 +22,7 @@ pub struct Header {
     pub message_size: i32
 }
 
-#[derive(Debug)]
+#[derive(Debug, IceDerive)]
 pub struct Identity {
     pub name: String,
     pub category: String
@@ -55,7 +54,7 @@ pub struct Encapsulation {
     pub data: Vec<u8>
 }
 
-#[derive(Debug)]
+#[derive(Debug, IceDerive)]
 pub struct RequestData {
     pub request_id: i32,
     pub id: Identity,
@@ -66,21 +65,21 @@ pub struct RequestData {
     pub params: Encapsulation
 }
 
-#[derive(Debug)]
+#[derive(Debug, IceEncode)]
 pub struct ReplyData {
     pub request_id: i32,
     pub status: u8,
     pub body: Encapsulation
 }
 
-#[derive(Debug)]
+#[derive(Debug, IceDerive)]
 pub struct Version
 {
     pub major: u8,
     pub minor: u8
 }
 
-#[derive(Debug)]
+#[derive(Debug, IceDerive)]
 pub struct ProxyData {
     pub id: String,
     pub facet: Vec<String>,
@@ -104,7 +103,7 @@ pub struct LocatorResult {
     pub endpoint: EndPointType
 }
 
-#[derive(Debug)]
+#[derive(Debug, IceDerive)]
 pub struct EndpointData
 {
     pub host: String,

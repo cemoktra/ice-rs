@@ -6,6 +6,7 @@ edition = "2018"
 description = "ZeroC Ice for Rust"
 readme = "README.md"
 homepage = "https://github.com/cemoktra/ice-rs"
+repository = "https://github.com/cemoktra/ice-rs"
 license = "GPL-2.0"
 keywords = ["zeroc", "ice", "rpc"]
 
@@ -19,6 +20,7 @@ path = "src/slice2rs/bin.rs"
 
 [dependencies]
 regex = "1"
+ice-derive = "0.1"
 Inflector = "0.11"
 pest = "2.0"
 pest_derive = "2.0"

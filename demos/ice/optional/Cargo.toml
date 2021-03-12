@@ -15,6 +15,7 @@ ice-rs = { path = "../../../" }
 
 [dependencies]
 ice-rs = { path = "../../../" }
+ice-derive = { path = "../../../derive" }
 num_enum = "0.5"
 tokio = { version = "1.1.0", features = ["full"] }
 async-trait = "0.1"
