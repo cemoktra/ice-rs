@@ -69,11 +69,6 @@ impl Interface {
 
             #[async_trait]
             pub trait #id_server_trait_token {
-                async fn ice_is_a(&mut self, param: &str) -> bool {
-                    param == #type_id_token
-                }
-                // TODO: ice_ids etc...
-
                 #server_decl_tokens
             }
 
@@ -88,6 +83,11 @@ impl Interface {
                         server_impl
                     }
                 }
+
+                async fn ice_is_a(&self, param: &str) -> bool {
+                    param == #type_id_token
+                }
+                // TODO: ice_ids etc...
             }
 
             #[async_trait]
@@ -100,7 +100,7 @@ impl Interface {
                             ReplyData {
                                 request_id: request.request_id,
                                 status: 0,
-                                body: Encapsulation::from(self.server_impl.ice_is_a(&param).await.to_bytes().unwrap())
+                                body: Encapsulation::from(self.ice_is_a(&param).await.to_bytes().unwrap())
                             }
                         },
                         #server_handler_tokens
