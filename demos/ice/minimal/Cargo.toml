@@ -10,6 +10,10 @@ edition = "2018"
 name = "minimal_client"
 path = "src/client/bin.rs"
 
+[[bin]]
+name = "minimal_server"
+path = "src/server/bin.rs"
+
 [build-dependencies]
 ice-rs = { path = "../../../" }
 

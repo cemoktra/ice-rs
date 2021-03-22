@@ -84,13 +84,6 @@ impl IceType {
         }
     }
 
-    pub fn rust_from(&self) -> String {
-        match self {
-            IceType::Optional(type_name, _) => format!("Option::<{}>", type_name.rust_type()),
-            _ => self.rust_type(),
-        }
-    }
-
     pub fn token_from(&self) -> TokenStream {
         match self {
             IceType::Optional(type_name, _) => {

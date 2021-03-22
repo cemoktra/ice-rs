@@ -50,6 +50,22 @@ impl Function {
         })
     }
 
+    pub fn generate_server_decl(&self) -> Result<TokenStream, Box<dyn std::error::Error>> {       
+        let id_token = &self.id;
+        let return_token = self.return_type.token();
+        let mut arg_tokens = vec![
+            quote! { &mut self }
+        ];
+        arg_tokens.extend(self.arguments.iter().map(|arg| arg.token()).collect::<Vec<_>>());
+        arg_tokens.push(quote! {
+            context: Option<HashMap<String, String>>
+        });
+
+        Ok(quote! {
+            async fn #id_token (#(#arg_tokens),*) -> #return_token;
+        })
+    }
+
     // TODO: return token stream
     pub fn generate_impl(&self) -> Result<TokenStream, Box<dyn std::error::Error>> {
         let id_token = &self.id;
@@ -98,6 +114,41 @@ impl Function {
                 #(#arg_serialize_output_tokens)*
                 #returned_token
             }
+        })
+    }
+
+    pub fn generate_server_handler(&self) -> Result<TokenStream, Box<dyn std::error::Error>> {
+        let ice_id_token = self.ice_id.clone();
+        let id_token = &self.id;
+
+        let func_call = if self.arguments.len() > 0 {
+            let mut arg_tokens = vec![];
+            arg_tokens.extend(self.arguments.iter().map(|arg| arg.token()).collect::<Vec<_>>());
+            arg_tokens.push(quote! {
+                context: Option<HashMap<String, String>>
+            });            
+            let decoded_tokens = self.arguments.iter().map(|arg| arg.serialize_output()).collect::<Vec<_>>();
+
+            quote!{
+                let mut read_bytes = 0;
+                #(#decoded_tokens)*
+                let result = self.server_impl.#id_token (#(#arg_tokens),*).await;
+            }
+        } else {
+            quote!{
+                let result = self.server_impl.#id_token (None).await;
+            }
+        };
+
+        Ok(quote! {
+            #ice_id_token => {
+                #func_call
+                ReplyData {
+                    request_id: request.request_id,
+                    status: 0,
+                    body: Encapsulation::from(result.to_bytes().unwrap())
+                }
+            },
         })
     }
 }

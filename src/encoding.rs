@@ -370,6 +370,12 @@ impl ToBytes for bool {
     }
 }
 
+impl ToBytes for () {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
+        Ok(vec![])
+    }
+}
+
 impl FromBytes for bool {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {

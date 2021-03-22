@@ -39,14 +39,78 @@ impl Interface {
                 #token
             };
         }
+        let mut server_decl_tokens = TokenStream::new();
+        for function in &self.functions {
+            let token = function.generate_server_decl()?;
+            server_decl_tokens = quote! {
+                #server_decl_tokens
+                #token
+            };
+        }
+        let mut server_handler_tokens = TokenStream::new();
+        for function in &self.functions {
+            let token = function.generate_server_handler()?;
+            server_handler_tokens = quote! {
+                #server_handler_tokens
+                #token
+            };
+        }
 
         let id_token = &self.id;
         let id_proxy_token = format_ident!("{}Prx", self.id.to_string());
+        let id_server_trait_token = format_ident!("{}I", self.id.to_string());
+        let id_server_token = format_ident!("{}Server", self.id.to_string());
         let type_id_token = format!("{}::{}", mod_path, self.ice_id);
         Ok(quote! {
             #[async_trait]
             pub trait #id_token : IceObject {
                 #decl_tokens
+            }
+
+            #[async_trait]
+            pub trait #id_server_trait_token {
+                async fn ice_is_a(&mut self, param: &str) -> bool {
+                    param == #type_id_token
+                }
+                // TODO: ice_ids etc...
+
+                #server_decl_tokens
+            }
+
+            pub struct #id_server_token {
+                server_impl: Box<dyn #id_server_trait_token + Send + Sync>
+            }
+
+            impl #id_server_token {
+                #[allow(dead_code)]
+                pub fn new(server_impl: Box<dyn #id_server_trait_token + Send + Sync>) -> #id_server_token {
+                    #id_server_token {
+                        server_impl
+                    }
+                }
+            }
+
+            #[async_trait]
+            impl IceObjectServer for #id_server_token {
+                async fn handle_request(&mut self, request: &RequestData) -> ReplyData {
+                    match request.operation.as_ref() {
+                        "ice_isA" => {
+                            let mut read = 0;
+                            let param = String::from_bytes(&request.params.data, &mut read).unwrap();
+                            ReplyData {
+                                request_id: request.request_id,
+                                status: 0,
+                                body: Encapsulation::from(self.server_impl.ice_is_a(&param).await.to_bytes().unwrap())
+                            }
+                        },
+                        #server_handler_tokens
+                        _ => ReplyData {
+                            request_id: request.request_id,
+                            status: 1,
+                            body: Encapsulation::from(String::from("Operation not found").as_bytes().to_vec())
+                        }
+                    }
+                }
             }
 
             pub struct #id_proxy_token {
@@ -88,12 +152,14 @@ impl Interface {
             }
 
             impl #id_proxy_token {
+                #[allow(dead_code)]
                 pub async fn unchecked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
                     Ok(Self {
                         proxy: proxy,
                     })
                 }
 
+                #[allow(dead_code)]
                 pub async fn checked_cast(proxy: Proxy) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
                     let mut my_proxy = Self::unchecked_cast(proxy).await?;
             

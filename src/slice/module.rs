@@ -170,7 +170,7 @@ impl Module {
         if self.interfaces.len() > 0 {
             use_statements.use_crate(quote! { use ice_rs::encoding::* });
             use_statements.use_crate(quote! { use ice_rs::proxy::Proxy });
-            use_statements.use_crate(quote! { use ice_rs::iceobject::IceObject });
+            use_statements.use_crate(quote! { use ice_rs::iceobject::* });
             use_statements.use_crate(quote! { use ice_rs::protocol::* });            
 
             for item in &self.interfaces {

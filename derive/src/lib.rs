@@ -28,6 +28,15 @@ pub fn ice_decode(input: TokenStream) -> TokenStream {
     impl_ice_decode(&ast).into()
 }
 
+#[proc_macro_derive(IceServer)]
+pub fn ice_server(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    let gen = impl_ice_object_server(&ast);
+    println!("{:?}", gen.to_string());
+    gen.into()
+}
+
+
 fn impl_ice_encode(ast: &syn::DeriveInput) -> TokenStream2 {
     let ident = &ast.ident;
     let mut members = Vec::new();

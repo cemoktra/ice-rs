@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use crate::{proxy::Proxy, proxy_factory::ProxyFactory};
 use crate::initdata::InitializationData;
 use crate::errors::PropertyError;
+use crate::adapter::*;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -40,6 +41,10 @@ impl Communicator {
                 Err(Box::new(PropertyError::new(property)))
             }
         }
+    }
+
+    pub async fn create_object_adapter_with_endpoint(&self, name: &str, endpoint: &str) -> Result<Adapter, Box<dyn std::error::Error + Sync + Send>> {
+        Adapter::with_endpoint(name, endpoint)
     }
 }
 
