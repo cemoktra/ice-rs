@@ -92,23 +92,19 @@ impl Interface {
 
             #[async_trait]
             impl IceObjectServer for #id_server_token {
-                async fn handle_request(&mut self, request: &RequestData) -> ReplyData {
+                async fn handle_request(&mut self, request: &RequestData) -> Result<ReplyData, Box<dyn std::error::Error + Sync + Send>> {
                     match request.operation.as_ref() {
                         "ice_isA" => {
                             let mut read = 0;
-                            let param = String::from_bytes(&request.params.data, &mut read).unwrap();
-                            ReplyData {
+                            let param = String::from_bytes(&request.params.data, &mut read)?;
+                            Ok(ReplyData {
                                 request_id: request.request_id,
                                 status: 0,
-                                body: Encapsulation::from(self.ice_is_a(&param).await.to_bytes().unwrap())
-                            }
+                                body: Encapsulation::from(self.ice_is_a(&param).await.to_bytes()?)
+                            })
                         },
                         #server_handler_tokens
-                        _ => ReplyData {
-                            request_id: request.request_id,
-                            status: 1,
-                            body: Encapsulation::from(String::from("Operation not found").as_bytes().to_vec())
-                        }
+                        _ => Err(Box::new(ProtocolError::new("Operation not found")))
                     }
                 }
             }

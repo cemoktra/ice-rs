@@ -61,17 +61,21 @@ impl Adapter {
         loop {
             let bytes = stream.read(&mut buffer).await?;
             let mut read = 0;
-            
-            // println!("=======================");
-            // println!("received buffer: {:?} of length {}", &buffer[0..bytes], bytes);
-
             let header = Header::from_bytes(&buffer[0..bytes], &mut read)?;
             match header.message_type {
                 0 => {
                     let req = RequestData::from_bytes(&buffer[read as usize..bytes], &mut read)?;
-                    // println!("parsed request: {:?}", req);
                     let reply = if let Some(object) = self.objects.get_mut(&req.id.name) {
-                        object.handle_request(&req).await
+                        match object.handle_request(&req).await {
+                            Ok(reply) => reply,
+                            Err(e) => {
+                                ReplyData {
+                                    request_id: req.request_id,
+                                    status: 1,
+                                    body: Encapsulation::from(e.to_string().as_bytes().to_vec())
+                                }
+                            }
+                        }
                     } else {
                         ReplyData {
                             request_id: req.request_id,
@@ -79,8 +83,6 @@ impl Adapter {
                             body: Encapsulation::from(String::from("Object not found").as_bytes().to_vec())
                         }
                     };
-        
-                    // println!("sending reply: {:?}", reply);
         
                     let header = Header::new(2, reply.body.size + 19);
                     let mut return_buffer = header.to_bytes()?;

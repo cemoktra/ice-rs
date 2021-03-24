@@ -63,7 +63,7 @@ pub struct UserError<T: std::fmt::Display> {
 
 impl std::fmt::Display for ProtocolError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProtocolError!")
+        write!(f, "ProtocolError: {}", self.detail)
     }
 }
 

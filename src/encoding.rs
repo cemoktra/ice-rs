@@ -41,7 +41,27 @@ impl OptionalType for String {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+pub struct OptionalWrapper<T> {
+    flag: OptionalFlag,
+    value: Option<T>
+}
+
+impl<T: OptionalType> OptionalWrapper<T> {
+    pub fn new(tag: u8, value: Option<T>) -> OptionalWrapper<T> {
+        OptionalWrapper {
+            flag: OptionalFlag::new(tag, T::optional_type()),
+            value
+        }
+    }
+}
+
+impl<T> Into<Option<T>> for OptionalWrapper<T> {
+    fn into(self) -> Option<T> {
+        self.value
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum SliceFlagsTypeEncoding {
     NoTypeId,
@@ -75,6 +95,26 @@ impl OptionalFlag {
 }
 
 // BASIC ENCODING FUNCTIONS
+impl ToBytes for SliceFlags {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
+        let mut byte = self.type_id.clone() as u8 & 0b11;
+        if self.optional_members {
+            byte = byte | 0b100;
+        }
+        if self.indirection_table {
+            byte = byte | 0b1000;
+        }
+        if self.slice_size {
+            byte = byte | 0b10000;
+        }
+        if self.last_slice {
+            byte = byte | 0b100000;
+        }
+
+        Ok(vec![byte])
+    }
+}
+
 impl FromBytes for SliceFlags {
     fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>>
     where Self: Sized {
@@ -532,6 +572,39 @@ impl<T: FromBytes> FromBytes for Option<T> {
             Ok(result)
         } else {
             Ok(None)
+        }
+    }
+}
+
+impl<T: ToBytes> ToBytes for OptionalWrapper<T> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Sync + Send>> {
+        let mut bytes = Vec::new();
+        match &self.value {
+            Some(value) => {
+                bytes.extend(self.flag.to_bytes()?);
+                bytes.extend(value.to_bytes()?);
+            }
+            None => {}
+        }
+        Ok(bytes)
+    }
+}
+
+impl<T: FromBytes> FromBytes for OptionalWrapper<T> {
+    fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+        if bytes.len() > 0 {
+            let mut read: i32 = 0;
+            let result = OptionalWrapper {
+                flag: OptionalFlag::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?,
+                value: Some(T::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?)
+            };
+            *read_bytes = *read_bytes + read;
+            Ok(result)
+        } else {
+            Ok(OptionalWrapper {
+                flag: OptionalFlag::new(0, 0),
+                value: None
+            })
         }
     }
 }

@@ -26,8 +26,9 @@ impl Class {
         self.members.push(member);
     }
 
-    pub fn generate(&self) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    pub fn generate(&self, mod_path: &str) -> Result<TokenStream, Box<dyn std::error::Error>> {
         let id_token = &self.id;
+        let type_id_token = format!("{}::{}", mod_path, self.ice_id);
         let mut member_tokens = self.members.iter().map(|member| {
             member.declare()
         }).collect::<Vec<_>>();
@@ -43,6 +44,22 @@ impl Class {
                 _ => {
                     quote! {
                         let #id_token = #var_token::from_bytes(&bytes[read as usize..bytes.len()], &mut read)?
+                    }
+                }
+            }
+        }).collect::<Vec<_>>();
+
+        let member_to_bytes_tokens = self.members.iter().map(|member| {
+            let id_token = &member.id;
+            match member.r#type {
+                IceType::Optional(_, tag) => {
+                    quote! {
+                        bytes.extend(OptionalWrapper::new(#tag, self.#id_token.clone()).to_bytes()?);
+                    }
+                }
+                _ => {
+                    quote! {
+                        bytes.extend(self.#id_token.to_bytes()?);
                     }
                 }
             }
@@ -113,20 +130,31 @@ impl Class {
             None
         };
 
-        // TODO: ToBytes incomplete
         Ok(quote! {
-            #[derive(Debug, Clone, PartialEq, IceEncode)]
+            #[derive(Debug, Clone, PartialEq)]
             pub struct #id_token {
                 #(#member_tokens),*
             }
 
-            // impl ToBytes for #id_token {
-            //     fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-            //         let mut bytes = Vec::new();
-            //         #(#member_to_bytes_tokens);*;
-            //         Ok(bytes)
-            //     }
-            // }
+            impl ToBytes for #id_token {
+                fn to_bytes(&self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+                    let mut bytes = Vec::new();
+                    let slice_flags = SliceFlags {
+                        type_id: SliceFlagsTypeEncoding::StringTypeId,
+                        optional_members: #has_optionals,
+                        indirection_table: false,
+                        slice_size: false,
+                        last_slice: true
+                    };
+                    bytes.extend(1u8.to_bytes()?);
+                    bytes.extend(slice_flags.to_bytes()?);                    
+                    bytes.extend(#type_id_token.to_bytes()?);
+                    // TODO: split non optional and optional members as optionals must go last
+                    #(#member_to_bytes_tokens);*;
+                    bytes.extend(255u8.to_bytes()?);
+                    Ok(bytes)
+                }
+            }
 
             impl FromBytes for #id_token {
                 fn from_bytes(bytes: &[u8], read_bytes: &mut i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>

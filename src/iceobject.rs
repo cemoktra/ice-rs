@@ -14,5 +14,5 @@ pub trait IceObject {
 
 #[async_trait]
 pub trait IceObjectServer {
-    async fn handle_request(&mut self, request: &RequestData) -> ReplyData;
+    async fn handle_request(&mut self, request: &RequestData) -> Result<ReplyData, Box<dyn std::error::Error + Sync + Send>>;
 }

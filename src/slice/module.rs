@@ -255,7 +255,7 @@ impl Module {
         }
 
         for class in &self.classes {
-            tokens.push(class.generate()?);
+            tokens.push(class.generate(&self.full_name)?);
         }
 
         for exception in &self.exceptions {

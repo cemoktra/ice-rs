@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate ice_derive;
-
 use ice_rs::communicator::Communicator;
 
 mod gen;
@@ -29,7 +26,7 @@ async fn run(comm: &mut Communicator) -> Result<(), Box<dyn std::error::Error + 
     contact_db.query_dialgroup(&String::from("john"), &mut dial_group, None).await?;
 
     if !dial_group.is_some() || dial_group.unwrap() != 0 {
-        print!("dialgroup is incorrect ");
+        print!("dialgroup is incorrect");
         return Ok(())
     }
 
@@ -95,11 +92,11 @@ async fn run(comm: &mut Communicator) -> Result<(), Box<dyn std::error::Error + 
     }
     let info = contact_db.query(&String::from("anne"), None).await?;
     if info.number.is_some() {
-        print!("info is incorrect ");
+        print!("info is incorrect (number) ");
         return Ok(())
     }
     if info.r#type != Some(NumberType::OFFICE) || info.dial_group != Some(2) {
-        print!("info is incorrect ");
+        print!("info is incorrect (type)");
         return Ok(())
     }
 
