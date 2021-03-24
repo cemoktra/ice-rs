@@ -2,11 +2,13 @@
 
 # ice-rs #
 
-The goal of this project is to support Rust in [ZeroC Ice](https://github.com/zeroc-ice/ice). Currently just client features and a small subset of ZeroC Ice features are implemented. 
+The goal of this project is to support Rust in [ZeroC Ice](https://github.com/zeroc-ice/ice). 
 
 ## Quick Start ##
 This quick start guide will cover a client for the [ZeroC Ice Minimal Sample](https://github.com/zeroc-ice/ice-demos/tree/3.7/python/Ice/minimal). Create a binary application with `cargo new minimal-client` and add `ice-rs` to your `[build-dependencies]`and `[dependencies]`. Now add a `build.rs` file with the following content:
 
+
+### Minimal client ###
 ```Rust
 use ice_rs::slice::parser;
 use std::path::Path;
@@ -35,6 +37,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut hello_prx = HelloPrx::checked_cast(proxy).await?;
 
     hello_prx.say_hello(None).await
+}
+```
+
+### Minimal server ###
+Based on the same `build.rs` file you can add a server for the minimal example.
+
+```Rust
+use ice_rs::communicator::Communicator;
+use std::collections::HashMap;
+use async_trait::async_trait;
+
+mod gen;
+use crate::gen::demo::{HelloServer, HelloI};
+
+struct HelloImpl {}
+
+#[async_trait]
+impl HelloI for HelloImpl {
+    async fn say_hello(&mut self, _context: Option<HashMap<String, String>>) -> ()
+    {
+        println!("Hello World!");
+        ()
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let comm = Communicator::new().await?;
+    let mut adapter = comm.create_object_adapter_with_endpoint("hello", "tcp -h localhost -p 10000").await?;
+
+    let hello_server = HelloServer::new(Box::new(HelloImpl{}));
+
+    adapter.add("hello", Box::new(hello_server));
+    adapter.activate().await?;
+    
+    Ok(())
 }
 ```
 

@@ -25,8 +25,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     adapter.add("hello", Box::new(hello_server));
     adapter.activate().await?;
-
-    // comm.wait_for_shutdown().await?;
-
+    
     Ok(())
 }
