@@ -28,6 +28,7 @@ pub fn ice_decode(input: TokenStream) -> TokenStream {
     impl_ice_decode(&ast).into()
 }
 
+
 fn impl_ice_encode(ast: &syn::DeriveInput) -> TokenStream2 {
     let ident = &ast.ident;
     let mut members = Vec::new();

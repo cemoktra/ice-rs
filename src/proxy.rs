@@ -114,6 +114,20 @@ impl Proxy {
         }
     }
 
+    pub async fn dispatch<
+        T: 'static + std::fmt::Debug + std::fmt::Display + FromBytes + Send + Sync,
+    >(
+        &mut self,
+        op: &str,
+        mode: u8,
+        params: &Encapsulation,
+        context: Option<HashMap<String, String>>,
+    ) -> Result<ReplyData, Box<dyn std::error::Error + Send + Sync>> {
+        let id = String::from(self.ident.clone());
+        let req = self.create_request(&id, op, mode, params, context);
+        self.make_request::<T>(&req).await
+    }
+
     pub fn create_request(&mut self, identity_name: &str, operation: &str, mode: u8, params: &Encapsulation, context: Option<HashMap<String, String>>) -> RequestData {
         let context = match context {
             Some(context) => context,
